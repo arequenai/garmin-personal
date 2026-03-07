@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,8 +13,17 @@ from app.routers import (
     sleep,
     sync,
 )
+from app.scheduler import scheduler
 
-app = FastAPI(title="Garmin Personal Sync")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="Garmin Personal Sync", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

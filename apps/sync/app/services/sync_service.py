@@ -2,14 +2,15 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Activity, DailySummary, SleepSession
+from app.models import Activity, DailySummary, NutritionDaily, SleepSession
 from app.services.garmin_client import GarminClient
 
 
 class SyncService:
-    def __init__(self, db: Session, garmin: GarminClient):
+    def __init__(self, db: Session, garmin: GarminClient, mfp=None):
         self.db = db
         self.garmin = garmin
+        self.mfp = mfp
 
     def _upsert(self, model_class, unique_field: str, unique_value, values: dict):
         """Generic upsert: find by unique field, update or create."""
@@ -133,7 +134,25 @@ class SyncService:
 
         return synced
 
+    def sync_nutrition(self, target_date: date) -> NutritionDaily | None:
+        if not self.mfp:
+            return None
+        data = self.mfp.get_day(target_date)
+        if not data:
+            return None
+        values = {
+            "date": target_date,
+            "calories": data.get("calories"),
+            "protein_g": data.get("protein_g"),
+            "carbs_g": data.get("carbs_g"),
+            "fat_g": data.get("fat_g"),
+            "fiber_g": data.get("fiber_g"),
+            "sodium_mg": data.get("sodium_mg"),
+        }
+        return self._upsert(NutritionDaily, "date", target_date, values)
+
     def sync_all(self, target_date: date):
         self.sync_daily_summary(target_date)
         self.sync_sleep(target_date)
         self.sync_activities(target_date)
+        self.sync_nutrition(target_date)
