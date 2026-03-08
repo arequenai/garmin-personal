@@ -27,7 +27,7 @@ app = FastAPI(title="Garmin Personal Sync", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
