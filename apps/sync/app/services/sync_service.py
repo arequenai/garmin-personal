@@ -3,14 +3,16 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from app.models import Activity, DailySummary, NutritionDaily, SleepSession
+from app.services.calculations import calculate_tss_hr, calculate_tss_strength
 from app.services.garmin_client import GarminClient
 
 
 class SyncService:
-    def __init__(self, db: Session, garmin: GarminClient, mfp=None):
+    def __init__(self, db: Session, garmin: GarminClient, mfp=None, hr_threshold: int = 165):
         self.db = db
         self.garmin = garmin
         self.mfp = mfp
+        self.hr_threshold = hr_threshold
 
     def _upsert(self, model_class, unique_field: str, unique_value, values: dict):
         """Generic upsert: find by unique field, update or create."""
@@ -93,10 +95,17 @@ class SyncService:
             "avg_hr_sleep": dto.get("averageHeartRate"),
             "avg_hrv": None,
             "avg_spo2_sleep": dto.get("averageSpO2Value"),
-            "sleep_score": dto.get("sleepScores", {}).get("overall"),
+            "sleep_score": self._extract_sleep_score(dto),
         }
 
         return self._upsert(SleepSession, "date", target_date, values)
+
+    @staticmethod
+    def _extract_sleep_score(dto: dict) -> int | None:
+        score = dto.get("sleepScores", {}).get("overall")
+        if isinstance(score, dict):
+            return score.get("value")
+        return score
 
     def sync_activities(self, target_date: date) -> list[Activity]:
         activities_raw = self.garmin.get_activities(0, 100)
@@ -128,6 +137,20 @@ class SyncService:
                 "vo2max_estimate": act.get("vO2MaxValue"),
                 "elevation_gain": act.get("elevationGain"),
             }
+
+            # Calculate TSS
+            act_type = values.get("type", "")
+            if act_type == "strength_training":
+                values["tss"] = calculate_tss_strength(
+                    values.get("duration_sec", 0),
+                    values.get("training_effect_aerobic"),
+                )
+            else:
+                values["tss"] = calculate_tss_hr(
+                    values.get("duration_sec", 0),
+                    values.get("avg_hr"),
+                    self.hr_threshold,
+                )
 
             record = self._upsert(Activity, "garmin_id", garmin_id, values)
             synced.append(record)

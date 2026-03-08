@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     hr_rest: int = 50
     hr_threshold: int = 165
 
-    model_config = {"env_file": "../../.env"}
+    model_config = {"env_file": "../../.env", "extra": "ignore"}
 
 
 settings = Settings()
