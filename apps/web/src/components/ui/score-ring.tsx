@@ -27,12 +27,12 @@ export function ScoreRing({
   const center = size / 2;
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
+        className="absolute inset-0 -rotate-90"
       >
         {/* Background track */}
         <circle
@@ -59,10 +59,7 @@ export function ScoreRing({
       </svg>
 
       {/* Score label centered over the SVG */}
-      <div
-        className="flex flex-col items-center justify-center"
-        style={{ marginTop: -size / 2 - size * 0.15, height: size }}
-      >
+      <div className="flex flex-col items-center justify-center">
         <span
           className="font-heading text-5xl font-bold tracking-tight"
           style={{ color }}
