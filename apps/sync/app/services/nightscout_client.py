@@ -22,6 +22,7 @@ class NightscoutClient:
             datetime.combine(start_date, time.min, tzinfo=timezone.utc).timestamp() * 1000
         )
         params = {
+            "token": self.token,
             "count": 100000,
             "find[date][$gte]": start_ms,
         }
@@ -31,12 +32,10 @@ class NightscoutClient:
             )
             params["find[date][$lt]"] = end_ms
 
-        headers = {"api-secret": self.token}
         try:
             resp = httpx.get(
                 f"{self.base_url}/api/v1/entries.json",
                 params=params,
-                headers=headers,
                 timeout=30,
             )
             resp.raise_for_status()
@@ -94,7 +93,7 @@ class NightscoutClient:
 
         return {
             "readings_count": len(sgv_values),
-            "mean_glucose": round(sum(sgv_values) / len(sgv_values), 1),
+            "mean_glucose": round(sum(sgv_values) / len(sgv_values)),
             "min_glucose": min(sgv_values),
             "max_glucose": max(sgv_values),
             "latest_glucose": readings[-1]["sgv"],

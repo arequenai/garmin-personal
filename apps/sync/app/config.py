@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     hr_max: int = 190
     hr_rest: int = 50
     hr_threshold: int = 165
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
 
     model_config = {"env_file": "../../.env", "extra": "ignore"}
 

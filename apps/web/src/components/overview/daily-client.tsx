@@ -50,9 +50,9 @@ const PANELS: PanelConfig[] = [
     label: "Running",
     color: "#4da6ff",
     metrics: [
-      { label: "TSB", apiLabel: "TSB" },
-      { label: "CTL", apiLabel: "CTL" },
+      { label: "Training Readiness", apiLabel: "Training Readiness" },
       { label: "km L7D", apiLabel: "km L7D" },
+      { label: "m+ L7D", apiLabel: "m+ L7D" },
     ],
   },
   {

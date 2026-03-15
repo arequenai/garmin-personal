@@ -105,7 +105,7 @@ def _weekly_running_stats(db: Session, target_date: date) -> tuple[float, float]
     )
     total_km = sum((a.distance_m or 0) / 1000 for a in acts)
     total_elev = sum(a.elevation_gain or 0 for a in acts)
-    return round(total_km, 1), round(total_elev, 0)
+    return round(total_km), round(total_elev)
 
 
 def _weekly_strength_stats(db: Session, target_date: date) -> tuple[int, float]:
@@ -754,7 +754,8 @@ def _build_daily_sections(
     )
 
     # ── Running (3 metrics) ──
-    weekly_km, _ = _weekly_running_stats(db, target_date)
+    weekly_km, weekly_elev = _weekly_running_stats(db, target_date)
+    tr_score = tr.score if tr else None
     sections.append(
         DailySection(
             id="running",
@@ -762,9 +763,9 @@ def _build_daily_sections(
             icon="\U0001f3c3",
             color="whoop-blue",
             metrics=[
-                _daily_metric("TSB", perf.tsb if perf else None, "", "tsb"),
-                _daily_metric("CTL", perf.ctl if perf else None, "", "ctl"),
+                _daily_metric("Training Readiness", tr_score, "", "training_readiness"),
                 _daily_metric("km L7D", weekly_km, "km", "weekly_km"),
+                _daily_metric("m+ L7D", weekly_elev, "m", "weekly_elev"),
             ],
         )
     )
@@ -818,9 +819,9 @@ def _build_daily_sections(
             metrics=[
                 _daily_metric(
                     "Recent Glucose",
-                    glucose.max_glucose if glucose else None,
+                    glucose.latest_glucose if glucose else None,
                     "mg/dL",
-                    "glucose_max",
+                    "glucose_latest",
                 ),
                 _daily_metric(
                     "Fasting Glucose",

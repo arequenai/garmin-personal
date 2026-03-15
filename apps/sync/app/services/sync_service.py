@@ -421,6 +421,7 @@ class SyncService:
             "mean_glucose": data.get("mean_glucose"),
             "min_glucose": data.get("min_glucose"),
             "max_glucose": data.get("max_glucose"),
+            "latest_glucose": data.get("latest_glucose"),
             "fasting_glucose": data.get("fasting_glucose"),
         }
         return self._upsert(GlucoseDaily, "date", target_date, values)

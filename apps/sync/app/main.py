@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings as app_settings
 from app.routers import (
     activities,
     daily,
@@ -29,7 +30,7 @@ app = FastAPI(title="Garmin Personal Sync", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
+    allow_origins=app_settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
