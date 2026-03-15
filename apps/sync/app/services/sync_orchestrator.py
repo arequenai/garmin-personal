@@ -31,7 +31,15 @@ def run_sync_for_date(target_date: date) -> None:
             mfp = MFPClient(cookies_json=mfp_cookies)
             mfp.login()
 
-        sync = SyncService(db=db, garmin=garmin, mfp=mfp)
+        nightscout = None
+        if settings.nightscout_url and settings.nightscout_token:
+            from app.services.nightscout_client import NightscoutClient
+
+            nightscout = NightscoutClient(
+                base_url=settings.nightscout_url, token=settings.nightscout_token
+            )
+
+        sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
         sync.sync_all(target_date)
         updater = PerformanceUpdater(db=db, garmin=garmin)
         updater.update(target_date)

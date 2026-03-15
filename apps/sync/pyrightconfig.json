@@ -1,0 +1,9 @@
+{
+  "pythonVersion": "3.12",
+  "include": ["app"],
+  "typeCheckingMode": "basic",
+  "reportOptionalMemberAccess": "warning",
+  "reportArgumentType": "warning",
+  "reportReturnType": "warning",
+  "reportOptionalOperand": "warning"
+}

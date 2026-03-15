@@ -1,72 +1,34 @@
-import { format } from "date-fns";
-import { RefreshCw } from "lucide-react";
-import Link from "next/link";
-
-import { BodyBatteryCard } from "@/components/dashboard/body-battery-card";
-import { LatestActivity } from "@/components/dashboard/latest-activity";
-import { MacroSplit } from "@/components/dashboard/macro-split";
-import { RecoveryScore } from "@/components/dashboard/recovery-score";
-import { TodaySummary } from "@/components/dashboard/today-summary";
+import { DM_Sans } from "next/font/google";
 import { fetchApi } from "@/lib/api";
-import type { DashboardData } from "@/lib/types";
+import type { OverviewData } from "@/lib/types";
+import { OverviewClient } from "@/components/overview/overview-client";
 
 export const dynamic = "force-dynamic";
 
-async function getDashboardData(): Promise<DashboardData | null> {
+const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
+
+export default async function OverviewPage() {
+  let data: OverviewData;
   try {
-    return await fetchApi<DashboardData>("/api/dashboard/today");
+    data = await fetchApi<OverviewData>("/api/overview");
   } catch {
-    return null;
+    data = {
+      date: new Date().toISOString().split("T")[0],
+      categories: {
+        running: { score: null, key_indicator: null, kpis: [], drivers: [] },
+        strength: { score: null, key_indicator: null, kpis: [], drivers: [] },
+        recovery: { score: null, key_indicator: null, kpis: [], drivers: [] },
+        sleep: { score: null, key_indicator: null, kpis: [], drivers: [] },
+        body: { score: null, key_indicator: null, kpis: [], drivers: [] },
+        glucose: { score: null, key_indicator: null, kpis: [], drivers: [] },
+      },
+      daily_sections: [],
+    };
   }
-}
-
-export default async function DashboardPage() {
-  const data = await getDashboardData();
-
-  const displayDate = data?.date
-    ? format(new Date(data.date + "T00:00:00"), "EEEE, MMM d, yyyy")
-    : format(new Date(), "EEEE, MMM d, yyyy");
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      {/* ── Header ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight text-text-primary">
-            Today
-          </h1>
-          <p className="mt-1 text-sm text-text-secondary">{displayDate}</p>
-        </div>
-
-        <Link
-          href="/"
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-bg-card text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
-          title="Refresh"
-        >
-          <RefreshCw size={18} />
-        </Link>
-      </div>
-
-      {/* ── Top row: Recovery + Body Battery ────────────── */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <RecoveryScore
-          performance={data?.performance ?? null}
-          sleep={data?.sleep ?? null}
-        />
-        <BodyBatteryCard daily={data?.daily_summary ?? null} />
-      </div>
-
-      {/* ── Summary metrics ────────────────────────────── */}
-      <TodaySummary
-        daily={data?.daily_summary ?? null}
-        sleep={data?.sleep ?? null}
-      />
-
-      {/* ── Latest Activity ────────────────────────────── */}
-      <LatestActivity activity={data?.latest_activity ?? null} />
-
-      {/* ── Macros ─────────────────────────────────────── */}
-      <MacroSplit nutrition={data?.nutrition ?? null} />
+    <div className={dmSans.variable}>
+      <OverviewClient data={data} />
     </div>
   );
 }

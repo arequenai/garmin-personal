@@ -13,17 +13,26 @@ from app.models import (
     SleepSession,
     TrainingReadiness,
 )
-from app.services.calculations import calculate_tss_hr, calculate_tss_strength
+from app.models.glucose_daily import GlucoseDaily
+from app.services.calculations import (
+    calculate_tss_hr,
+    calculate_tss_strength,
+    process_stress_data,
+)
 from app.services.garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
 
 
 class SyncService:
-    def __init__(self, db: Session, garmin: GarminClient, mfp=None, hr_threshold: int = 165):
+    def __init__(
+        self, db: Session, garmin: GarminClient, mfp=None, nightscout=None,
+        hr_threshold: int = 165,
+    ):
         self.db = db
         self.garmin = garmin
         self.mfp = mfp
+        self.nightscout = nightscout
         self.hr_threshold = hr_threshold
 
     def _upsert(self, model_class, unique_field: str, unique_value, values: dict):
@@ -47,7 +56,6 @@ class SyncService:
         date_str = target_date.isoformat()
         stats = self.garmin.get_daily_summary(date_str)
         hr = self.garmin.get_heart_rates(date_str)
-        stress = self.garmin.get_stress_data(date_str)
         bb = self.garmin.get_body_battery(date_str, date_str)
         spo2 = self.garmin.get_spo2_data(date_str)
         resp = self.garmin.get_respiration_data(date_str)
@@ -61,6 +69,17 @@ class SyncService:
             logger.debug("Failed to fetch intensity minutes", exc_info=True)
             intensity_mod = None
             intensity_vig = None
+
+        # Single API call; prefer detailed array, fall back to aggregate fields
+        stress = self.garmin.get_stress_data(date_str)
+        stress_detail = stress.get("stressValuesArray", [])
+        if stress_detail:
+            stress_result = process_stress_data(stress_detail)
+            stress_avg = stress_result["stress_avg"]
+            stress_max = stress_result["stress_max"]
+        else:
+            stress_avg = stress.get("overallStressLevel")
+            stress_max = stress.get("maxStressLevel")
 
         bb_highs = [b.get("charged", 0) for b in bb] if bb else []
         bb_lows = [b.get("drained", 100) for b in bb] if bb else []
@@ -76,8 +95,8 @@ class SyncService:
             "resting_hr": hr.get("restingHeartRate"),
             "max_hr": hr.get("maxHeartRate"),
             "min_hr": hr.get("minHeartRate"),
-            "stress_avg": stress.get("overallStressLevel"),
-            "stress_max": stress.get("maxStressLevel"),
+            "stress_avg": stress_avg,
+            "stress_max": stress_max,
             "body_battery_high": max(bb_highs) if bb_highs else None,
             "body_battery_low": min(bb_lows) if bb_lows else None,
             "spo2_avg": spo2.get("averageSpo2"),
@@ -251,6 +270,12 @@ class SyncService:
         if values["weight_kg"] and values["weight_kg"] > 500:
             values["weight_kg"] = values["weight_kg"] / 1000
 
+        # Fall back to MFP weight if Garmin has no weight
+        if not values["weight_kg"] and self.mfp:
+            mfp_weight = self.mfp.get_weight()
+            if mfp_weight:
+                values["weight_kg"] = mfp_weight
+
         return self._upsert(BodyComposition, "date", target_date, values)
 
     def sync_race_predictions(self, target_date: date) -> RacePrediction | None:
@@ -304,6 +329,12 @@ class SyncService:
             logger.debug("Failed to fetch training readiness", exc_info=True)
             return None
         if not data:
+            return None
+
+        # API may return a list; extract first element
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        if not isinstance(data, dict):
             return None
 
         values = {
@@ -377,6 +408,23 @@ class SyncService:
         self.db.commit()
         return synced
 
+    def sync_glucose(self, target_date: date) -> GlucoseDaily | None:
+        """Sync glucose data from Nightscout for a target date."""
+        if not self.nightscout:
+            return None
+        data = self.nightscout.get_daily_summary(target_date)
+        if not data:
+            return None
+        values = {
+            "date": target_date,
+            "readings_count": data.get("readings_count"),
+            "mean_glucose": data.get("mean_glucose"),
+            "min_glucose": data.get("min_glucose"),
+            "max_glucose": data.get("max_glucose"),
+            "fasting_glucose": data.get("fasting_glucose"),
+        }
+        return self._upsert(GlucoseDaily, "date", target_date, values)
+
     def sync_all(self, target_date: date):
         self.sync_daily_summary(target_date)
         self.sync_sleep(target_date)
@@ -385,3 +433,4 @@ class SyncService:
         self.sync_body_composition(target_date)
         self.sync_race_predictions(target_date)
         self.sync_training_readiness(target_date)
+        self.sync_glucose(target_date)

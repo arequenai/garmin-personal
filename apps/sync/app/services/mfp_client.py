@@ -2,7 +2,6 @@ import json
 import logging
 from datetime import date
 from http.cookiejar import CookieJar
-from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ class MFPClient:
                 cookie = Cookie(
                     version=0,
                     name=name,
-                    value=unquote(value),
+                    value=value,
                     port=None,
                     port_specified=False,
                     domain=".myfitnesspal.com",
@@ -80,4 +79,40 @@ class MFPClient:
             }
         except Exception as e:
             logger.warning(f"MFP get_day failed for {target_date}: {e}")
+            return None
+
+    def get_weight(self) -> float | None:
+        """Get most recent weight from MFP measurements API."""
+        if not self._authenticated or not self._client:
+            return None
+
+        try:
+            import requests
+
+            auth = self._client._auth_data
+            token = auth.get("access_token", "")
+            user_id = self._client._user_metadata.get("id", "")
+
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+                "mfp-client-id": "mfp-main-js",
+                "mfp-user-id": str(user_id),
+            }
+            resp = requests.get(
+                "https://api.myfitnesspal.com/v2/measurements"
+                "?type=Weight&most_recent=true",
+                headers=headers,
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                return None
+
+            items = resp.json().get("items", [])
+            if not items:
+                return None
+
+            return items[0].get("value")
+        except Exception as e:
+            logger.warning(f"MFP get_weight failed: {e}")
             return None

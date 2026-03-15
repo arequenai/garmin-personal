@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     garmin_email: str = ""
     garmin_password: str = ""
     mfp_cookies: str = ""
+    nightscout_url: str = ""
+    nightscout_token: str = ""
     hr_max: int = 190
     hr_rest: int = 50
     hr_threshold: int = 165

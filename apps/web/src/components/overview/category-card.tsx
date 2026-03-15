@@ -21,15 +21,12 @@ export function CategoryCard({ category, label, icon, color }: CategoryCardProps
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-whoop-border bg-whoop-card p-6">
       {/* Header */}
-      <div className="flex items-center gap-2.5">
-        <span className="text-xl">{icon}</span>
-        <span
-          className="text-[15px] font-bold uppercase tracking-widest"
-          style={{ color, fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {label}
-        </span>
-      </div>
+      <span
+        className="text-lg font-bold uppercase tracking-widest"
+        style={{ color, fontFamily: "'DM Sans', sans-serif" }}
+      >
+        {label}
+      </span>
 
       {/* Key indicator + ring + sparkline */}
       <div className="flex items-center gap-5">

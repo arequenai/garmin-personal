@@ -33,15 +33,12 @@ export function DailySectionCard({ section }: { section: DailySectionType }) {
         onClick={() => setOpen(!open)}
         className="flex w-full cursor-pointer select-none items-center justify-between px-4 py-3.5"
       >
-        <div className="flex items-center gap-2.5">
-          <span className="text-lg">{section.icon}</span>
-          <span
-            className="text-sm font-bold uppercase tracking-widest"
-            style={{ color, fontFamily: "'DM Sans', sans-serif" }}
-          >
-            {section.label}
-          </span>
-        </div>
+        <span
+          className="text-base font-bold uppercase tracking-widest"
+          style={{ color, fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {section.label}
+        </span>
         <div className="flex items-center gap-2.5">
           <Ring size={36} stroke={3} pct={avgPct} color={color}>
             <span

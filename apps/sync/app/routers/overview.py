@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models import Activity, DailySummary, NutritionDaily, PerformanceMetric, SleepSession
 from app.models.body_composition import BodyComposition
 from app.models.exercise_set import ExerciseSet
+from app.models.glucose_daily import GlucoseDaily
 from app.models.race_prediction import RacePrediction
 from app.models.training_readiness import TrainingReadiness
 from app.models.user_goal import UserGoal
@@ -75,6 +76,12 @@ def _fmt_time(dt) -> str:
     if hasattr(dt, "strftime"):
         return dt.strftime("%H:%M")
     return str(dt)
+
+
+def _sleep_efficiency(total_min, awake_min) -> int | None:
+    if total_min and awake_min is not None and (total_min + awake_min) > 0:
+        return round(total_min / (total_min + awake_min) * 100)
+    return None
 
 
 def _fmt_num(val, decimals: int = 0) -> str:
@@ -420,9 +427,7 @@ def _build_sleep(db: Session, target_date: date, perf, sleep, daily) -> Overview
 
     total_min = sleep.total_sleep_min if sleep else None
     awake_min = sleep.awake_min if sleep else None
-    efficiency = None
-    if total_min and awake_min is not None and (total_min + awake_min) > 0:
-        efficiency = round(total_min / (total_min + awake_min) * 100)
+    efficiency = _sleep_efficiency(total_min, awake_min)
 
     bb_high = daily.body_battery_high if daily else None
 
@@ -538,8 +543,63 @@ def _build_body(
     )
 
 
-def _build_glucose() -> OverviewCategoryResponse:
-    return OverviewCategoryResponse(score=None, key_indicator=None, kpis=[], drivers=[])
+def _build_glucose(glucose=None) -> OverviewCategoryResponse:
+    if not glucose:
+        return OverviewCategoryResponse(score=None, key_indicator=None, kpis=[], drivers=[])
+
+    return OverviewCategoryResponse(
+        score=None,
+        key_indicator=KeyIndicator(
+            label="Mean Glucose",
+            value=_fmt_num(glucose.mean_glucose),
+            unit="mg/dL",
+            trend_pct=0,
+            spark=[],
+        )
+        if glucose.mean_glucose
+        else None,
+        kpis=[
+            KPI(
+                label="Fasting",
+                value=_fmt_num(glucose.fasting_glucose),
+                unit="mg/dL",
+                trend_pct=0,
+            ),
+            KPI(
+                label="Min",
+                value=_fmt_num(glucose.min_glucose),
+                unit="mg/dL",
+                trend_pct=0,
+            ),
+            KPI(
+                label="Max",
+                value=_fmt_num(glucose.max_glucose),
+                unit="mg/dL",
+                trend_pct=0,
+            ),
+        ],
+        drivers=[
+            Driver(
+                label="Readings",
+                value=_fmt_num(glucose.readings_count),
+                unit="",
+                trend_pct=0,
+            ),
+        ],
+    )
+
+
+def _days_since_last_strength(db: Session, target_date: date) -> int | None:
+    """Days since the most recent strength_training activity."""
+    last = (
+        db.query(Activity.date)
+        .filter(Activity.type == STRENGTH_TYPE, Activity.date <= target_date)
+        .order_by(Activity.date.desc())
+        .first()
+    )
+    if last is None:
+        return None
+    return (target_date - last[0]).days
 
 
 def _build_daily_sections(
@@ -554,6 +614,7 @@ def _build_daily_sections(
     tr=None,
     strength_act_ids=None,
     weekly_strength=None,
+    glucose=None,
 ) -> list[DailySection]:
     sections = []
 
@@ -585,7 +646,15 @@ def _build_daily_sections(
             pct=pct,
         )
 
-    # Nutrition section
+    # ── Nutrition (3 metrics) ──
+    # Net calories = consumed - active burned
+    cal_consumed = nutrition.calories if nutrition else None
+    cal_active = daily.calories_active if daily else None
+    if cal_consumed is not None and cal_active is not None:
+        net_cal = cal_consumed - cal_active
+    else:
+        net_cal = cal_consumed  # fall back to consumed if no burn data
+
     sections.append(
         DailySection(
             id="nutrition",
@@ -594,8 +663,8 @@ def _build_daily_sections(
             color="whoop-green",
             metrics=[
                 _daily_metric(
-                    "Calories",
-                    nutrition.calories if nutrition else None,
+                    "Net Cal",
+                    net_cal,
                     "kcal",
                     "calories",
                 ),
@@ -604,12 +673,6 @@ def _build_daily_sections(
                     body_comp.weight_kg if body_comp else None,
                     "kg",
                     "weight",
-                ),
-                _daily_metric(
-                    "Carbs",
-                    nutrition.carbs_g if nutrition else None,
-                    "g",
-                    "carbs",
                 ),
                 _daily_metric(
                     "Protein",
@@ -621,9 +684,8 @@ def _build_daily_sections(
         )
     )
 
-    # Recovery section
-    if tr is None:
-        tr = db.query(TrainingReadiness).filter_by(date=target_date).first()
+    # ── Recovery (3 metrics) ──
+    recovery_score = round(perf.recovery_score) if perf and perf.recovery_score is not None else None
     sections.append(
         DailySection(
             id="recovery",
@@ -633,7 +695,7 @@ def _build_daily_sections(
             metrics=[
                 _daily_metric(
                     "Recovery",
-                    tr.score if tr else None,
+                    recovery_score,
                     "%",
                     "recovery_score",
                 ),
@@ -644,61 +706,73 @@ def _build_daily_sections(
                     "body_battery",
                 ),
                 _daily_metric(
+                    "Stress",
+                    daily.stress_avg if daily else None,
+                    "",
+                    "stress",
+                ),
+            ],
+        )
+    )
+
+    # ── Sleep (3 metrics) ──
+    total_min = sleep.total_sleep_min if sleep else None
+    awake_min = sleep.awake_min if sleep else None
+    efficiency = _sleep_efficiency(total_min, awake_min)
+
+    sections.append(
+        DailySection(
+            id="sleep",
+            label="Sleep",
+            icon="\U0001f634",
+            color="whoop-red",
+            metrics=[
+                _daily_metric(
                     "Sleep Quality",
                     sleep.sleep_score if sleep else None,
                     "",
                     "sleep_score",
                 ),
+                DailyMetric(
+                    label="Time in Bed",
+                    value=_fmt_duration_min(total_min),
+                    unit="hrs",
+                    target=_fmt_num(_goal("time_in_bed")) if _goal("time_in_bed") else "--",
+                    pct=_pct_toward_goal(
+                        float(total_min) if total_min else None,
+                        _goal("time_in_bed"),
+                    ),
+                ),
                 _daily_metric(
-                    "HRV",
-                    sleep.avg_hrv if sleep else None,
-                    "ms",
-                    "hrv",
+                    "Bed Behavior",
+                    efficiency,
+                    "%",
+                    "sleep_efficiency",
                 ),
             ],
         )
     )
 
-    # Running section
-    marathon_sec = (
-        db.query(RacePrediction.predicted_marathon_sec).filter_by(date=target_date).scalar()
-    )
-    marathon_goal = _goal("marathon")
+    # ── Running (3 metrics) ──
+    weekly_km, _ = _weekly_running_stats(db, target_date)
     sections.append(
         DailySection(
             id="running",
             label="Running",
             icon="\U0001f3c3",
-            color="whoop-green",
+            color="whoop-blue",
             metrics=[
                 _daily_metric("TSB", perf.tsb if perf else None, "", "tsb"),
                 _daily_metric("CTL", perf.ctl if perf else None, "", "ctl"),
-                DailyMetric(
-                    label="Marathon",
-                    value=_fmt_duration_sec(marathon_sec),
-                    unit="",
-                    target=_fmt_duration_sec(int(marathon_goal)) if marathon_goal else "--",
-                    pct=min(
-                        100,
-                        round((marathon_goal or 0) / max(1, marathon_sec or 99999) * 100),
-                    )
-                    if marathon_goal
-                    else 0,
-                ),
-                _daily_metric(
-                    "VO2max",
-                    perf.vo2max if perf else None,
-                    "",
-                    "vo2max",
-                ),
+                _daily_metric("km L7D", weekly_km, "km", "weekly_km"),
             ],
         )
     )
 
-    # Strength section
+    # ── Strength (3 metrics) ──
     if weekly_strength is None:
         weekly_strength = _weekly_strength_stats(db, target_date)
-    str_count, str_hours = weekly_strength
+    _, str_hours = weekly_strength
     if strength_act_ids is None:
         start_30d = target_date - timedelta(days=30)
         strength_act_ids = [
@@ -712,6 +786,8 @@ def _build_daily_sections(
             .all()
         ]
     pullups = _pullup_max(db, strength_act_ids)
+    days_since = _days_since_last_strength(db, target_date)
+
     sections.append(
         DailySection(
             id="strength",
@@ -719,53 +795,44 @@ def _build_daily_sections(
             icon="\U0001f4aa",
             color="whoop-teal",
             metrics=[
+                _daily_metric(
+                    "Days since Jefit",
+                    days_since,
+                    "days",
+                    "days_since_strength",
+                    lower_is_better=True,
+                ),
                 _daily_metric("Pull-ups Max", pullups, "reps", "pullups"),
                 _daily_metric("Strength Time", str_hours, "hrs", "strength_time"),
-                _daily_metric(
-                    "Muscle Mass",
-                    body_comp.muscle_mass_kg if body_comp else None,
-                    "kg",
-                    "muscle_mass",
-                ),
-                _daily_metric("Training Days", str_count, "/wk", "strength_days"),
             ],
         )
     )
 
-    # Body Comp section
+    # ── Glucose (3 metrics) ──
     sections.append(
         DailySection(
-            id="body",
-            label="Body Comp",
-            icon="\u2696\ufe0f",
+            id="glucose",
+            label="Glucose",
+            icon="\U0001fa78",
             color="whoop-purple",
             metrics=[
                 _daily_metric(
-                    "Body Fat",
-                    body_comp.body_fat_pct if body_comp else None,
-                    "%",
-                    "body_fat",
-                    lower_is_better=True,
+                    "Recent Glucose",
+                    glucose.max_glucose if glucose else None,
+                    "mg/dL",
+                    "glucose_max",
                 ),
                 _daily_metric(
-                    "BMI",
-                    body_comp.bmi if body_comp else None,
-                    "",
-                    "bmi",
-                    lower_is_better=True,
+                    "Fasting Glucose",
+                    glucose.fasting_glucose if glucose else None,
+                    "mg/dL",
+                    "glucose_fasting",
                 ),
                 _daily_metric(
-                    "Body Water",
-                    body_comp.body_water_pct if body_comp else None,
-                    "%",
-                    "body_water",
-                ),
-                _daily_metric(
-                    "Visceral Fat",
-                    body_comp.visceral_fat if body_comp else None,
-                    "",
-                    "visceral_fat",
-                    lower_is_better=True,
+                    "Mean Glucose",
+                    glucose.mean_glucose if glucose else None,
+                    "mg/dL",
+                    "glucose_mean",
                 ),
             ],
         )
@@ -783,6 +850,7 @@ def get_overview(db: Session = Depends(get_db)):
     perf = db.query(PerformanceMetric).filter_by(date=target).first()
     nutrition = db.query(NutritionDaily).filter_by(date=target).first()
     body_comp = db.query(BodyComposition).filter_by(date=target).first()
+    glucose = db.query(GlucoseDaily).filter_by(date=target).first()
 
     # Goals as dict
     all_goals = db.query(UserGoal).all()
@@ -809,7 +877,7 @@ def get_overview(db: Session = Depends(get_db)):
         "recovery": _build_recovery(db, target, perf, daily, sleep, tr),
         "sleep": _build_sleep(db, target, perf, sleep, daily),
         "body": _build_body(db, target, perf, body_comp, nutrition),
-        "glucose": _build_glucose(),
+        "glucose": _build_glucose(glucose),
     }
 
     daily_sections = _build_daily_sections(
@@ -824,6 +892,7 @@ def get_overview(db: Session = Depends(get_db)):
         tr,
         strength_act_ids,
         weekly_strength,
+        glucose,
     )
 
     return OverviewResponse(

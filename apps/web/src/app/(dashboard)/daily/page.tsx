@@ -1,13 +1,13 @@
 import { DM_Sans } from "next/font/google";
 import { fetchApi } from "@/lib/api";
 import type { OverviewData } from "@/lib/types";
+import { DailyClient } from "@/components/overview/daily-client";
 
 export const dynamic = "force-dynamic";
-import { OverviewClient } from "@/components/overview/overview-client";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 
-export default async function OverviewPage() {
+export default async function DailyPage() {
   let data: OverviewData;
   try {
     data = await fetchApi<OverviewData>("/api/overview");
@@ -28,7 +28,7 @@ export default async function OverviewPage() {
 
   return (
     <div className={dmSans.variable}>
-      <OverviewClient data={data} />
+      <DailyClient data={data} />
     </div>
   );
 }

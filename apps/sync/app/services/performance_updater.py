@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.constants import RUNNING_TYPES, STRENGTH_TYPE
-from app.models import Activity, PerformanceMetric, SleepSession
+from app.models import Activity, DailySummary, PerformanceMetric, SleepSession
 from app.models.body_composition import BodyComposition
 from app.models.training_readiness import TrainingReadiness
 from app.services.calculations import (
@@ -15,6 +15,7 @@ from app.services.calculations import (
     calculate_recovery_score,
     calculate_tsb,
 )
+from app.services.recovery_model import predict_recovery
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +72,20 @@ class PerformanceUpdater:
         last_7 = all_tss[-7:] if len(all_tss) >= 7 else all_tss
         last_28 = all_tss[-28:] if len(all_tss) >= 28 else all_tss
 
-        # Recovery score
+        # Recovery score — prefer ML model, fall back to formula
         sleep = self.db.query(SleepSession).filter_by(date=target_date).first()
         sleep_score = sleep.sleep_score if sleep else None
         hrv = sleep.avg_hrv if sleep else None
-        recovery = calculate_recovery_score(tsb, sleep_score, hrv)
+
+        daily = self.db.query(DailySummary).filter_by(date=target_date).first()
+        resting_hr = daily.resting_hr if daily else None
+        stress_avg = daily.stress_avg if daily else None
+        bb_high = daily.body_battery_high if daily else None
+
+        recovery = predict_recovery(resting_hr, sleep_score, stress_avg, bb_high)
+        if recovery is None:
+            # Fallback to old formula
+            recovery = calculate_recovery_score(tsb, sleep_score, hrv)
 
         daily_tss = tss_by_date.get(target_date, 0.0)
 

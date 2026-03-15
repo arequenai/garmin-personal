@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Apple,
+  CalendarDays,
   Heart,
-  LayoutDashboard,
   LayoutGrid,
   Moon,
   Settings,
@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/overview", icon: LayoutGrid, label: "Overview" },
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/", icon: LayoutGrid, label: "Overview" },
+  { href: "/daily", icon: CalendarDays, label: "Daily" },
   { href: "/performance", icon: TrendingUp, label: "Performance" },
   { href: "/sleep", icon: Moon, label: "Sleep" },
   { href: "/nutrition", icon: Apple, label: "Nutrition" },
@@ -25,7 +25,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="bg-bg-card fixed left-0 top-0 z-40 flex h-screen w-[72px] flex-col items-center py-6 shadow-[1px_0_0_0_rgba(255,255,255,0.04)]">
+    <aside className="bg-bg-card fixed left-0 top-0 z-40 hidden h-screen w-[72px] flex-col items-center py-6 shadow-[1px_0_0_0_rgba(255,255,255,0.04)] md:flex">
       {/* Brand mark */}
       <Link
         href="/"
@@ -35,7 +35,7 @@ export function Sidebar() {
       </Link>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col items-center gap-1">
+      <nav className="flex flex-col items-center gap-1">
         {navItems.map(({ href, icon: Icon, label }) => {
           const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (

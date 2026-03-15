@@ -4,6 +4,8 @@ Pure calculation functions used by SyncService (TSS per activity)
 and PerformanceUpdater (daily ATL/CTL/TSB).
 """
 
+import math
+
 
 def calculate_tss_hr(
     duration_sec: int,
@@ -47,19 +49,92 @@ def calculate_tss_strength(
 
 
 def calculate_ewma(tss_values: list[float], days: int) -> float:
-    """Exponentially weighted moving average for CTL (42d) or ATL (7d)."""
+    """Exponentially weighted moving average for CTL (42d) or ATL (7d).
+
+    Uses the physiological decay constant exp(-1/n), matching the
+    TrainingPeaks / WKO standard used in sports science.
+    """
     if not tss_values:
         return 0.0
-    decay = 2.0 / (days + 1)
+    k = math.exp(-1.0 / days)
     ewma = 0.0
     for tss in tss_values:
-        ewma = tss * decay + ewma * (1 - decay)
+        ewma = tss * (1 - k) + ewma * k
     return round(ewma, 2)
 
 
 def calculate_tsb(ctl: float, atl: float) -> float:
     """Training Stress Balance = CTL - ATL."""
     return round(ctl - atl, 2)
+
+
+def process_stress_data(stress_values: list[list]) -> dict:
+    """Process raw Garmin stress data points with interpolation and smoothing.
+
+    Args:
+        stress_values: list of [timestamp_ms, stress_value] pairs.
+            -1 = activity/missing, -2 = unusable
+
+    Returns:
+        dict with stress_avg, stress_max, stress_min, valid_readings
+    """
+    if not stress_values:
+        return {
+            "stress_avg": None,
+            "stress_max": None,
+            "stress_min": None,
+            "valid_readings": 0,
+        }
+
+    import numpy as np
+
+    # Extract values
+    values = [v[1] for v in stress_values]
+
+    # Replace -1 and -2 with NaN
+    cleaned = [float(v) if v > 0 else float("nan") for v in values]
+
+    if all(np.isnan(v) for v in cleaned):
+        return {
+            "stress_avg": None,
+            "stress_max": None,
+            "stress_min": None,
+            "valid_readings": 0,
+        }
+
+    # Linear interpolation for short gaps (<=15 minutes = ~5 readings at 3min intervals)
+    arr = np.array(cleaned)
+    nans = np.isnan(arr)
+
+    if nans.any() and not nans.all():
+        valid_idx = np.where(~nans)[0]
+
+        for i in range(len(valid_idx) - 1):
+            start = valid_idx[i]
+            end = valid_idx[i + 1]
+            gap_size = end - start - 1
+
+            # Only interpolate gaps of 5 or fewer points (~15 min)
+            if 0 < gap_size <= 5:
+                for j in range(1, gap_size + 1):
+                    ratio = j / (gap_size + 1)
+                    arr[start + j] = arr[start] * (1 - ratio) + arr[end] * ratio
+
+    # Apply centered moving average (window=10)
+    valid = arr[~np.isnan(arr)]
+    if len(valid) >= 10:
+        kernel = np.ones(10) / 10
+        smoothed = np.convolve(valid, kernel, mode="valid")
+        avg = float(np.mean(smoothed))
+    else:
+        avg = float(np.nanmean(arr))
+
+    return {
+        "stress_avg": round(avg),
+        "stress_max": int(np.nanmax(valid)) if len(valid) > 0 else None,
+        "stress_min": int(np.nanmin(valid)) if len(valid) > 0 else None,
+        "valid_readings": int(len(valid)),
+    }
 
 
 def calculate_recovery_score(
