@@ -21,7 +21,15 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Add latest_glucose column."""
-    op.add_column("glucose_daily", sa.Column("latest_glucose", sa.Float(), nullable=True))
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'glucose_daily' AND column_name = 'latest_glucose'"
+        )
+    )
+    if not result.fetchone():
+        op.add_column("glucose_daily", sa.Column("latest_glucose", sa.Float(), nullable=True))
 
 
 def downgrade() -> None:
