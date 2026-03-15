@@ -18,9 +18,15 @@ def get_user(db: Session) -> User:
     return user
 
 
+def _settings_response(user: User) -> SettingsResponse:
+    response = SettingsResponse.model_validate(user)
+    response.mfp_configured = bool(user.mfp_cookies)
+    return response
+
+
 @router.get("", response_model=SettingsResponse)
 def get_settings(db: Session = Depends(get_db)):
-    return get_user(db)
+    return _settings_response(get_user(db))
 
 
 @router.put("", response_model=SettingsResponse)
@@ -30,4 +36,4 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db)):
         setattr(user, field, value)
     db.commit()
     db.refresh(user)
-    return user
+    return _settings_response(user)

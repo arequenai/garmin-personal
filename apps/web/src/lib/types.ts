@@ -78,6 +78,11 @@ export interface PerformanceMetric {
   training_load_7d: number | null;
   training_load_28d: number | null;
   recovery_score: number | null;
+  vo2max: number | null;
+  endurance_score: number | null;
+  hill_score: number | null;
+  fitness_age: number | null;
+  category_scores: Record<string, number> | null;
 }
 
 export interface DashboardData {
@@ -87,4 +92,64 @@ export interface DashboardData {
   latest_activity: Activity | null;
   nutrition: NutritionDaily | null;
   performance: PerformanceMetric | null;
+}
+
+// ── Overview types ──
+
+export interface KeyIndicator {
+  label: string;
+  value: string;
+  unit: string;
+  trend_pct: number;
+  spark: number[];
+}
+
+export interface KPI {
+  label: string;
+  value: string;
+  unit: string;
+  trend_pct: number;
+}
+
+export interface OverviewDriver {
+  label: string;
+  value: string;
+  unit: string;
+  trend_pct: number;
+}
+
+export interface OverviewCategory {
+  score: number | null;
+  key_indicator: KeyIndicator | null;
+  kpis: KPI[];
+  drivers: OverviewDriver[];
+}
+
+export interface DailyMetric {
+  label: string;
+  value: string;
+  unit: string;
+  target: string;
+  pct: number;
+}
+
+export interface DailySection {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  metrics: DailyMetric[];
+}
+
+export interface OverviewData {
+  date: string;
+  categories: Record<string, OverviewCategory>;
+  daily_sections: DailySection[];
+}
+
+export interface UserGoal {
+  metric_key: string;
+  target_value: number;
+  target_unit: string;
+  category: string;
 }

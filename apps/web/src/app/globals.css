@@ -13,6 +13,20 @@
   --color-sleep: #6366f1;
   --color-alert: #ef4444;
 
+  --color-whoop-bg: #0a0a0a;
+  --color-whoop-surface: #141414;
+  --color-whoop-card: #1a1a1a;
+  --color-whoop-border: #2a2a2a;
+  --color-whoop-text: #f0f0f0;
+  --color-whoop-text-secondary: #888888;
+  --color-whoop-text-muted: #555555;
+  --color-whoop-green: #00d68f;
+  --color-whoop-teal: #00c4b4;
+  --color-whoop-yellow: #f5c542;
+  --color-whoop-red: #ff4d4d;
+  --color-whoop-blue: #4da6ff;
+  --color-whoop-purple: #b388ff;
+
   --font-heading: var(--font-space-grotesk), sans-serif;
   --font-body: var(--font-inter), sans-serif;
 }

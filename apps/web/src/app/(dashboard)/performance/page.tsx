@@ -8,6 +8,8 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { fetchApi } from "@/lib/api";
 import type { Activity, PerformanceMetric } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 async function getPerformanceData(): Promise<PerformanceMetric[]> {
   try {
     const toDate = format(new Date(), "yyyy-MM-dd");

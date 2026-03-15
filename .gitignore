@@ -46,5 +46,8 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Superpowers brainstorm
+.superpowers/
+
 # Misc
 *.log

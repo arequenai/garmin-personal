@@ -6,12 +6,14 @@ import {
   Apple,
   Heart,
   LayoutDashboard,
+  LayoutGrid,
   Moon,
   Settings,
   TrendingUp,
 } from "lucide-react";
 
 const navItems = [
+  { href: "/overview", icon: LayoutGrid, label: "Overview" },
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/performance", icon: TrendingUp, label: "Performance" },
   { href: "/sleep", icon: Moon, label: "Sleep" },
@@ -58,7 +60,7 @@ export function Sidebar() {
 
       {/* Settings at bottom */}
       <Link
-        href="/settings"
+        href="/settings/goals"
         className="text-text-secondary hover:bg-bg-hover/50 flex h-11 w-11 items-center justify-center rounded-lg transition-all duration-200 hover:text-text-primary"
       >
         <Settings size={20} strokeWidth={1.5} />
