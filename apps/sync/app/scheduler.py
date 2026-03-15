@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def daily_sync_job():
     logger.info("Starting daily sync job")
     try:
-        target = date.today() - timedelta(days=1)
+        target = date.today()
         run_sync_for_date(target)
         logger.info(f"Daily sync completed for {target}")
     except Exception:
