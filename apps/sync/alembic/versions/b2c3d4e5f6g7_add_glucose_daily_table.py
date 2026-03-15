@@ -29,6 +29,7 @@ def upgrade() -> None:
         sa.Column("mean_glucose", sa.Float(), nullable=True),
         sa.Column("min_glucose", sa.Float(), nullable=True),
         sa.Column("max_glucose", sa.Float(), nullable=True),
+        sa.Column("latest_glucose", sa.Float(), nullable=True),
         sa.Column("fasting_glucose", sa.Float(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("date"),

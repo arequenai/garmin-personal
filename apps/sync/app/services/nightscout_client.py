@@ -13,22 +13,32 @@ class NightscoutClient:
         self.base_url = base_url.rstrip("/")
         self.token = token
 
-    def fetch_entries(self, start_date: date) -> list[dict]:
-        """Fetch CGM entries from Nightscout starting at the given date.
+    def fetch_entries(self, start_date: date, end_date: date | None = None) -> list[dict]:
+        """Fetch CGM entries from Nightscout for a date range.
 
-        Calls {base_url}/api/v1/entries.json with the token and a date filter.
+        Calls {base_url}/api/v1/entries.json with token in header and date filters.
         """
-        timestamp_ms = int(
+        start_ms = int(
             datetime.combine(start_date, time.min, tzinfo=timezone.utc).timestamp() * 1000
         )
-        url = (
-            f"{self.base_url}/api/v1/entries.json"
-            f"?token={self.token}"
-            f"&count=100000"
-            f"&find[date][$gte]={timestamp_ms}"
-        )
+        params = {
+            "count": 100000,
+            "find[date][$gte]": start_ms,
+        }
+        if end_date is not None:
+            end_ms = int(
+                datetime.combine(end_date, time.min, tzinfo=timezone.utc).timestamp() * 1000
+            )
+            params["find[date][$lt]"] = end_ms
+
+        headers = {"api-secret": self.token}
         try:
-            resp = httpx.get(url, timeout=30)
+            resp = httpx.get(
+                f"{self.base_url}/api/v1/entries.json",
+                params=params,
+                headers=headers,
+                timeout=30,
+            )
             resp.raise_for_status()
             return resp.json()
         except Exception:
@@ -43,7 +53,7 @@ class NightscoutClient:
         Returns None if no readings found.
         """
         next_day = target_date + timedelta(days=1)
-        entries = self.fetch_entries(target_date)
+        entries = self.fetch_entries(target_date, end_date=next_day)
         if not entries:
             return None
 
@@ -87,5 +97,6 @@ class NightscoutClient:
             "mean_glucose": round(sum(sgv_values) / len(sgv_values), 1),
             "min_glucose": min(sgv_values),
             "max_glucose": max(sgv_values),
+            "latest_glucose": readings[-1]["sgv"],
             "fasting_glucose": fasting,
         }
