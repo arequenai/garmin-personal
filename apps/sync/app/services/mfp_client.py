@@ -1,34 +1,83 @@
+import json
 import logging
 from datetime import date
+from http.cookiejar import CookieJar
+from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 
 
 class MFPClient:
-    """MyFitnessPal client. Currently a stub -- implement with actual MFP library or scraping."""
+    """MyFitnessPal client using cookie-based authentication."""
 
-    def __init__(self, username: str, password: str):
-        self.username = username
-        self.password = password
+    def __init__(self, cookies_json: str):
+        self.cookies_json = cookies_json
+        self._client = None
         self._authenticated = False
 
     def login(self):
-        """Authenticate with MyFitnessPal."""
-        # TODO: Implement actual MFP authentication
-        # Options: myfitnesspal library, or httpx scraping
-        if self.username and self.password:
+        """Initialize MFP client with stored cookies."""
+        if not self.cookies_json:
+            logger.warning("MFP cookies not configured")
+            return
+
+        try:
+            import myfitnesspal
+
+            cookies = json.loads(self.cookies_json)
+            jar = CookieJar()
+
+            # Build cookie jar from the JSON cookie dict
+            import time
+            from http.cookiejar import Cookie
+
+            for name, value in cookies.items():
+                cookie = Cookie(
+                    version=0,
+                    name=name,
+                    value=unquote(value),
+                    port=None,
+                    port_specified=False,
+                    domain=".myfitnesspal.com",
+                    domain_specified=True,
+                    domain_initial_dot=True,
+                    path="/",
+                    path_specified=True,
+                    secure=True,
+                    expires=int(time.time()) + 86400 * 30,
+                    discard=False,
+                    comment=None,
+                    comment_url=None,
+                    rest={},
+                )
+                jar.set_cookie(cookie)
+
+            self._client = myfitnesspal.Client(cookiejar=jar)
             self._authenticated = True
-            logger.info("MFP client initialized (stub mode)")
-        else:
-            logger.warning("MFP credentials not configured")
+            logger.info("MFP client authenticated via cookies")
+        except Exception as e:
+            logger.warning(f"MFP authentication failed: {e}")
+            self._authenticated = False
 
     def get_day(self, target_date: date) -> dict | None:
-        """Get nutrition data for a specific day.
-
-        Returns: {calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg} or None
-        """
-        if not self._authenticated:
+        """Get nutrition data for a specific day."""
+        if not self._authenticated or not self._client:
             return None
-        # TODO: Implement actual MFP data retrieval
-        logger.info(f"MFP get_day called for {target_date} (stub -- no data)")
-        return None
+
+        try:
+            day = self._client.get_date(target_date.year, target_date.month, target_date.day)
+            if not day or not day.totals:
+                return None
+
+            totals = day.totals
+            return {
+                "calories": totals.get("calories"),
+                "protein_g": totals.get("protein"),
+                "carbs_g": totals.get("carbohydrates"),
+                "fat_g": totals.get("fat"),
+                "fiber_g": totals.get("fiber"),
+                "sodium_mg": totals.get("sodium"),
+            }
+        except Exception as e:
+            logger.warning(f"MFP get_day failed for {target_date}: {e}")
+            return None

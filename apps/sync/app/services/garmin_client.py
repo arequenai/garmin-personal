@@ -58,3 +58,39 @@ class GarminClient:
     def get_stats_and_body(self, date_str: str) -> dict:
         """Get comprehensive daily stats including body composition."""
         return self._client.get_stats_and_body(date_str)
+
+    def get_body_composition(self, date_str: str) -> dict:
+        """Get body composition data (weight, body fat, muscle mass, etc.)."""
+        return self._client.get_body_composition(date_str, date_str)
+
+    def get_race_predictions(self, date_str: str) -> list[dict]:
+        """Get race predictions for a specific date."""
+        return self._client.get_race_predictions(date_str, date_str, "daily")
+
+    def get_training_readiness(self, date_str: str) -> dict:
+        """Get training readiness score and factors."""
+        return self._client.get_training_readiness(date_str)
+
+    def get_max_metrics(self, date_str: str) -> dict:
+        """Get VO2max and other max metrics."""
+        return self._client.get_max_metrics(date_str)
+
+    def get_endurance_score(self, date_str: str) -> dict:
+        """Get endurance score."""
+        return self._client.get_endurance_score(date_str, date_str)
+
+    def get_hill_score(self, date_str: str) -> dict:
+        """Get hill score."""
+        return self._client.get_hill_score(date_str, date_str)
+
+    def get_fitness_age(self, date_str: str) -> dict:
+        """Get fitness age estimate."""
+        return self._client.get_fitnessage_data(date_str)
+
+    def get_intensity_minutes(self, date_str: str) -> dict:
+        """Get intensity minutes (moderate + vigorous)."""
+        return self._client.get_intensity_minutes_data(date_str)
+
+    def get_exercise_sets(self, activity_id: str) -> dict:
+        """Get per-set exercise data for strength activities."""
+        return self._client.get_activity_exercise_sets(activity_id)

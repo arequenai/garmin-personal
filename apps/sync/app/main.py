@@ -7,7 +7,9 @@ from app.routers import (
     activities,
     daily,
     dashboard,
+    goals,
     nutrition,
+    overview,
     performance,
     settings,
     sleep,
@@ -40,6 +42,8 @@ app.include_router(nutrition.router)
 app.include_router(performance.router)
 app.include_router(daily.router)
 app.include_router(sync.router)
+app.include_router(goals.router)
+app.include_router(overview.router)
 
 
 @app.get("/api/health")

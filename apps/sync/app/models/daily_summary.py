@@ -25,3 +25,5 @@ class DailySummary(Base):
     spo2_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
     respiration_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
     hydration_ml: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    intensity_minutes_moderate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    intensity_minutes_vigorous: Mapped[int | None] = mapped_column(Integer, nullable=True)

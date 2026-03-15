@@ -45,6 +45,13 @@ def make_mock_garmin(overrides=None):
     mock.get_spo2_data.return_value = {"averageSpo2": 97.0}
     mock.get_respiration_data.return_value = {"avgWakingRespirationValue": 16.0}
     mock.get_hydration_data.return_value = {"valueInML": 2000}
+    mock.get_intensity_minutes.return_value = {
+        "moderateIntensityMinutes": 30,
+        "vigorousIntensityMinutes": 15,
+    }
+    mock.get_hrv_data.return_value = {
+        "hrvSummary": {"lastNightAvg": 45, "weeklyAvg": 42},
+    }
     mock.get_sleep_data.return_value = {
         "dailySleepDTO": {
             "sleepStartTimestampLocal": 1709686800000,

@@ -26,3 +26,4 @@ class Activity(Base):
     tss: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     strength_sets = relationship("StrengthSession", back_populates="activity")
+    exercise_sets = relationship("ExerciseSet", back_populates="activity")

@@ -5,6 +5,7 @@ class SettingsResponse(BaseModel):
     hr_max: int
     hr_rest: int
     hr_threshold: int
+    mfp_configured: bool = False
 
     model_config = {"from_attributes": True}
 
