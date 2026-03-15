@@ -8,6 +8,8 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { fetchApi } from "@/lib/api";
 import type { DailySummary } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 async function getDailySummaries(): Promise<DailySummary[]> {
   try {
     const toDate = format(new Date(), "yyyy-MM-dd");

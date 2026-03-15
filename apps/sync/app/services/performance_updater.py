@@ -96,9 +96,7 @@ class PerformanceUpdater:
             values.update(fitness)
 
         # Compute category scores
-        category_scores = self._compute_category_scores(
-            target_date, ctl, tsb, recovery, sleep
-        )
+        category_scores = self._compute_category_scores(target_date, ctl, tsb, recovery, sleep)
         values["category_scores"] = category_scores
 
         # Upsert

@@ -3,8 +3,6 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
-
 from app.models import (
     Activity,
     BodyComposition,
@@ -17,6 +15,8 @@ from app.models import (
 )
 from app.services.calculations import calculate_tss_hr, calculate_tss_strength
 from app.services.garmin_client import GarminClient
+
+logger = logging.getLogger(__name__)
 
 
 class SyncService:
@@ -332,6 +332,9 @@ class SyncService:
         for exercise in exercises:
             exercise_name = exercise.get("exerciseName", "Unknown")
             sets = exercise.get("sets", [])
+            # Garmin API doesn't provide a stable set ID; positional index is the
+            # only available key. Sets are ordered by execution time, so re-syncs
+            # produce the same ordering for a given activity.
             for i, s in enumerate(sets, 1):
                 set_type = s.get("setType")
                 reps = s.get("repetitionCount")

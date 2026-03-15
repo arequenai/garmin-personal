@@ -6,6 +6,8 @@ import { NutritionStats } from "@/components/nutrition/nutrition-stats";
 import { fetchApi } from "@/lib/api";
 import type { NutritionDaily } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 async function getNutritionData(): Promise<NutritionDaily[]> {
   try {
     const toDate = format(new Date(), "yyyy-MM-dd");

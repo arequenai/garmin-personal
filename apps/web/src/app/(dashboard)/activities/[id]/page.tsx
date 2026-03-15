@@ -6,6 +6,8 @@ import { ActivityMetrics } from "@/components/activity/activity-metrics";
 import { fetchApi } from "@/lib/api";
 import type { Activity } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 async function getActivity(id: string): Promise<Activity | null> {
   try {
     return await fetchApi<Activity>(`/api/activities/${id}`);

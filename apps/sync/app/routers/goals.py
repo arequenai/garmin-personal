@@ -18,11 +18,7 @@ def get_goals(db: Session = Depends(get_db)):
 def update_goals(goals_data: list[UserGoalCreate], db: Session = Depends(get_db)):
     results = []
     for goal_data in goals_data:
-        existing = (
-            db.query(UserGoal)
-            .filter(UserGoal.metric_key == goal_data.metric_key)
-            .first()
-        )
+        existing = db.query(UserGoal).filter(UserGoal.metric_key == goal_data.metric_key).first()
         if existing:
             existing.target_value = goal_data.target_value
             existing.target_unit = goal_data.target_unit

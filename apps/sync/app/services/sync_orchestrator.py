@@ -5,6 +5,7 @@ from datetime import date
 
 from app.config import settings
 from app.database import SessionLocal
+from app.models import User
 from app.services.garmin_client import GarminClient
 from app.services.performance_updater import PerformanceUpdater
 from app.services.sync_service import SyncService
@@ -19,11 +20,15 @@ def run_sync_for_date(target_date: date) -> None:
         garmin = GarminClient(email=settings.garmin_email, password=settings.garmin_password)
         garmin.login()
 
+        # Read MFP cookies from DB user record, fall back to env var
+        user = db.query(User).first()
+        mfp_cookies = (user.mfp_cookies if user and user.mfp_cookies else None) or settings.mfp_cookies
+
         mfp = None
-        if settings.mfp_cookies:
+        if mfp_cookies:
             from app.services.mfp_client import MFPClient
 
-            mfp = MFPClient(cookies_json=settings.mfp_cookies)
+            mfp = MFPClient(cookies_json=mfp_cookies)
             mfp.login()
 
         sync = SyncService(db=db, garmin=garmin, mfp=mfp)

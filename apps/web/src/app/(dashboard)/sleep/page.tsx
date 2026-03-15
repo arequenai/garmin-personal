@@ -8,6 +8,8 @@ import { fetchApi } from "@/lib/api";
 import { formatDurationMin } from "@/lib/format";
 import type { SleepSession } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 async function getSleepData(): Promise<SleepSession[]> {
   try {
     const toDate = format(new Date(), "yyyy-MM-dd");

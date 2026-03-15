@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 import { BodyBatteryCard } from "@/components/dashboard/body-battery-card";
 import { LatestActivity } from "@/components/dashboard/latest-activity";
@@ -8,6 +9,8 @@ import { RecoveryScore } from "@/components/dashboard/recovery-score";
 import { TodaySummary } from "@/components/dashboard/today-summary";
 import { fetchApi } from "@/lib/api";
 import type { DashboardData } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 async function getDashboardData(): Promise<DashboardData | null> {
   try {
@@ -35,13 +38,13 @@ export default async function DashboardPage() {
           <p className="mt-1 text-sm text-text-secondary">{displayDate}</p>
         </div>
 
-        <a
+        <Link
           href="/"
           className="flex h-10 w-10 items-center justify-center rounded-xl bg-bg-card text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           title="Refresh"
         >
           <RefreshCw size={18} />
-        </a>
+        </Link>
       </div>
 
       {/* ── Top row: Recovery + Body Battery ────────────── */}

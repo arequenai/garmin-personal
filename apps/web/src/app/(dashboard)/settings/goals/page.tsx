@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { UserGoal } from "@/lib/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { fetchApi, mutateApi } from "@/lib/api";
 
 const CATEGORIES = [
   {
@@ -78,9 +77,8 @@ export default function GoalsPage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/goals`)
-      .then((r) => r.json())
-      .then((data: UserGoal[]) => {
+    fetchApi<UserGoal[]>("/api/goals")
+      .then((data) => {
         const map: Record<string, number> = {};
         for (const g of data) {
           map[g.metric_key] = g.target_value;
@@ -107,11 +105,7 @@ export default function GoalsPage() {
       }
     }
     try {
-      await fetch(`${API_BASE}/api/goals`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await mutateApi("/api/goals", "PUT", payload);
     } finally {
       setSaving(false);
     }

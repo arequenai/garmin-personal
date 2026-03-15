@@ -14,3 +14,4 @@ class SettingsUpdate(BaseModel):
     hr_max: int | None = None
     hr_rest: int | None = None
     hr_threshold: int | None = None
+    mfp_cookies: str | None = None

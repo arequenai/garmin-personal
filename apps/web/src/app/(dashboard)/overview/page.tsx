@@ -1,6 +1,8 @@
 import { DM_Sans } from "next/font/google";
 import { fetchApi } from "@/lib/api";
 import type { OverviewData } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 import { OverviewClient } from "@/components/overview/overview-client";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
