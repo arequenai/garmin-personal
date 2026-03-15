@@ -2,79 +2,20 @@
 
 import type { OverviewData } from "@/lib/types";
 
-interface PanelMetric {
-  label: string;
-  apiLabel?: string; // label to match in daily_sections, if different from display label
-}
-
 interface PanelConfig {
   id: string;
   label: string;
   color: string;
-  metrics: PanelMetric[];
+  metrics: string[];
 }
 
 const PANELS: PanelConfig[] = [
-  {
-    id: "nutrition",
-    label: "Nutrition",
-    color: "#00d68f",
-    metrics: [
-      { label: "Net Cal", apiLabel: "Net Cal" },
-      { label: "Weight", apiLabel: "Weight" },
-      { label: "Protein", apiLabel: "Protein" },
-    ],
-  },
-  {
-    id: "recovery",
-    label: "Recovery",
-    color: "#f5c542",
-    metrics: [
-      { label: "Recovery", apiLabel: "Recovery" },
-      { label: "Battery", apiLabel: "Battery" },
-      { label: "Stress", apiLabel: "Stress" },
-    ],
-  },
-  {
-    id: "sleep",
-    label: "Sleep",
-    color: "#ff4d4d",
-    metrics: [
-      { label: "Sleep Quality", apiLabel: "Sleep Quality" },
-      { label: "Time in Bed", apiLabel: "Time in Bed" },
-      { label: "Bed Behavior", apiLabel: "Bed Behavior" },
-    ],
-  },
-  {
-    id: "running",
-    label: "Running",
-    color: "#4da6ff",
-    metrics: [
-      { label: "Training Readiness", apiLabel: "Training Readiness" },
-      { label: "km L7D", apiLabel: "km L7D" },
-      { label: "m+ L7D", apiLabel: "m+ L7D" },
-    ],
-  },
-  {
-    id: "strength",
-    label: "Strength",
-    color: "#00c4b4",
-    metrics: [
-      { label: "Days since Jefit", apiLabel: "Days since Jefit" },
-      { label: "Pull-ups Max", apiLabel: "Pull-ups Max" },
-      { label: "Strength Time", apiLabel: "Strength Time" },
-    ],
-  },
-  {
-    id: "glucose",
-    label: "Glucose",
-    color: "#b388ff",
-    metrics: [
-      { label: "Recent Glucose", apiLabel: "Recent Glucose" },
-      { label: "Fasting Glucose", apiLabel: "Fasting Glucose" },
-      { label: "Mean Glucose", apiLabel: "Mean Glucose" },
-    ],
-  },
+  { id: "nutrition", label: "Nutrition", color: "#00d68f", metrics: ["Net Cal", "Weight", "Protein"] },
+  { id: "recovery", label: "Recovery", color: "#f5c542", metrics: ["Recovery", "Battery", "Stress"] },
+  { id: "sleep", label: "Sleep", color: "#ff4d4d", metrics: ["Sleep Quality", "Time in Bed", "Bed Behavior"] },
+  { id: "running", label: "Running", color: "#4da6ff", metrics: ["Training Readiness", "km L7D", "m+ L7D"] },
+  { id: "strength", label: "Strength", color: "#00c4b4", metrics: ["Days since Jefit", "Pull-ups Max", "Strength Time"] },
+  { id: "glucose", label: "Glucose", color: "#b388ff", metrics: ["Recent Glucose", "Fasting Glucose", "Mean Glucose"] },
 ];
 
 export function DailyClient({ data }: { data: OverviewData }) {
@@ -123,14 +64,14 @@ export function DailyClient({ data }: { data: OverviewData }) {
                 {panel.label}
               </div>
               <div className="flex flex-col gap-1.5">
-                {panel.metrics.map((metric) => {
-                  const found = lookup.get(metric.apiLabel ?? metric.label);
+                {panel.metrics.map((label) => {
+                  const found = lookup.get(label);
                   const value = found?.value ?? "--";
                   const unit = found?.unit ?? "";
                   return (
-                    <div key={metric.label} className="flex items-baseline justify-between">
+                    <div key={label} className="flex items-baseline justify-between">
                       <span className="text-[10px] text-whoop-text-secondary md:text-xs">
-                        {metric.label}
+                        {label}
                         {unit && (
                           <span className="ml-0.5 text-whoop-text-muted">({unit})</span>
                         )}

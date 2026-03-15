@@ -153,3 +153,20 @@ export interface UserGoal {
   target_unit: string;
   category: string;
 }
+
+const EMPTY_CATEGORY: OverviewCategory = { score: null, key_indicator: null, kpis: [], drivers: [] };
+
+export function emptyOverviewData(): OverviewData {
+  return {
+    date: new Date().toISOString().split("T")[0],
+    categories: {
+      running: EMPTY_CATEGORY,
+      strength: EMPTY_CATEGORY,
+      recovery: EMPTY_CATEGORY,
+      sleep: EMPTY_CATEGORY,
+      body: EMPTY_CATEGORY,
+      glucose: EMPTY_CATEGORY,
+    },
+    daily_sections: [],
+  };
+}

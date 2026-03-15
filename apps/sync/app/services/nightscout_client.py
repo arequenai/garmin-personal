@@ -23,7 +23,7 @@ class NightscoutClient:
         )
         params = {
             "token": self.token,
-            "count": 100000,
+            "count": 500,
             "find[date][$gte]": start_ms,
         }
         if end_date is not None:
@@ -56,22 +56,13 @@ class NightscoutClient:
         if not entries:
             return None
 
-        # Filter entries to the target day and extract sgv (sensor glucose value)
-        day_start_ms = int(
-            datetime.combine(target_date, time.min, tzinfo=timezone.utc).timestamp() * 1000
-        )
-        day_end_ms = int(
-            datetime.combine(next_day, time.min, tzinfo=timezone.utc).timestamp() * 1000
-        )
-
+        # Extract entries with valid sgv (date filtering already done by API)
         readings = []
         for entry in entries:
-            entry_date = entry.get("date", 0)
             sgv = entry.get("sgv")
             if sgv is None:
                 continue
-            if day_start_ms <= entry_date < day_end_ms:
-                readings.append({"date": entry_date, "sgv": sgv})
+            readings.append({"date": entry.get("date", 0), "sgv": sgv})
 
         if not readings:
             return None

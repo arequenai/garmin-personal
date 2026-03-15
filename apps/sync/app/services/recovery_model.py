@@ -4,8 +4,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Feature configuration
-FEATURES = ["resting_hr", "sleep_score", "stress_avg", "body_battery_high"]
 FEATURE_BOUNDS = {
     "resting_hr": (30, 120),
     "sleep_score": (0, 100),

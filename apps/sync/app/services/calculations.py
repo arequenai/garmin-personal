@@ -6,6 +6,8 @@ and PerformanceUpdater (daily ATL/CTL/TSB).
 
 import math
 
+import numpy as np
+
 
 def calculate_tss_hr(
     duration_sec: int,
@@ -78,15 +80,15 @@ def process_stress_data(stress_values: list[list]) -> dict:
     Returns:
         dict with stress_avg, stress_max, stress_min, valid_readings
     """
-    if not stress_values:
-        return {
-            "stress_avg": None,
-            "stress_max": None,
-            "stress_min": None,
-            "valid_readings": 0,
-        }
+    empty_result = {
+        "stress_avg": None,
+        "stress_max": None,
+        "stress_min": None,
+        "valid_readings": 0,
+    }
 
-    import numpy as np
+    if not stress_values:
+        return empty_result
 
     # Extract values
     values = [v[1] for v in stress_values]
@@ -95,12 +97,7 @@ def process_stress_data(stress_values: list[list]) -> dict:
     cleaned = [float(v) if v > 0 else float("nan") for v in values]
 
     if all(np.isnan(v) for v in cleaned):
-        return {
-            "stress_avg": None,
-            "stress_max": None,
-            "stress_min": None,
-            "valid_readings": 0,
-        }
+        return empty_result
 
     # Linear interpolation for short gaps (<=15 minutes = ~5 readings at 3min intervals)
     arr = np.array(cleaned)

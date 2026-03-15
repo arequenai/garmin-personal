@@ -178,14 +178,18 @@ def _pct_toward_goal(
     return min(100, round(value / target * 100))
 
 
-def _build_running(db: Session, target_date: date, perf, goals: dict) -> OverviewCategoryResponse:
+def _build_running(
+    db: Session, target_date: date, perf, goals: dict, weekly_running=None
+) -> OverviewCategoryResponse:
     race = db.query(RacePrediction).filter_by(date=target_date).first()
     race_7ago = _get_value_days_ago(db, RacePrediction, "predicted_marathon_sec", target_date, 7)
 
     marathon_val = race.predicted_marathon_sec if race else None
     spark = _spark_values(db, RacePrediction, "predicted_marathon_sec", target_date)
 
-    weekly_km, weekly_elev = _weekly_running_stats(db, target_date)
+    if weekly_running is None:
+        weekly_running = _weekly_running_stats(db, target_date)
+    weekly_km, weekly_elev = weekly_running
     prev_km, prev_elev = _weekly_running_stats(db, target_date - timedelta(days=7))
 
     vo2max = perf.vo2max if perf else None
@@ -263,6 +267,7 @@ def _build_strength(
     body_comp,
     strength_act_ids=None,
     weekly_strength=None,
+    nutrition=None,
 ) -> OverviewCategoryResponse:
     scores = (perf.category_scores or {}) if perf else {}
 
@@ -291,8 +296,9 @@ def _build_strength(
     str_count, str_hours = weekly_strength
     prev_count, prev_hours = _weekly_strength_stats(db, target_date - timedelta(days=7))
 
-    # Get today's protein from nutrition
-    nutrition = db.query(NutritionDaily).filter_by(date=target_date).first()
+    # Get today's protein from nutrition (use pre-fetched if available)
+    if nutrition is None:
+        nutrition = db.query(NutritionDaily).filter_by(date=target_date).first()
     protein = nutrition.protein_g if nutrition else None
     protein_7ago = _get_value_days_ago(db, NutritionDaily, "protein_g", target_date, 7)
 
@@ -615,6 +621,7 @@ def _build_daily_sections(
     strength_act_ids=None,
     weekly_strength=None,
     glucose=None,
+    weekly_running=None,
 ) -> list[DailySection]:
     sections = []
 
@@ -719,6 +726,7 @@ def _build_daily_sections(
     total_min = sleep.total_sleep_min if sleep else None
     awake_min = sleep.awake_min if sleep else None
     efficiency = _sleep_efficiency(total_min, awake_min)
+    time_in_bed_goal = _goal("time_in_bed")
 
     sections.append(
         DailySection(
@@ -737,10 +745,10 @@ def _build_daily_sections(
                     label="Time in Bed",
                     value=_fmt_duration_min(total_min),
                     unit="hrs",
-                    target=_fmt_num(_goal("time_in_bed")) if _goal("time_in_bed") else "--",
+                    target=_fmt_num(time_in_bed_goal) if time_in_bed_goal else "--",
                     pct=_pct_toward_goal(
                         float(total_min) if total_min else None,
-                        _goal("time_in_bed"),
+                        time_in_bed_goal,
                     ),
                 ),
                 _daily_metric(
@@ -754,7 +762,9 @@ def _build_daily_sections(
     )
 
     # ── Running (3 metrics) ──
-    weekly_km, weekly_elev = _weekly_running_stats(db, target_date)
+    if weekly_running is None:
+        weekly_running = _weekly_running_stats(db, target_date)
+    weekly_km, weekly_elev = weekly_running
     tr_score = tr.score if tr else None
     sections.append(
         DailySection(
@@ -859,6 +869,7 @@ def get_overview(db: Session = Depends(get_db)):
 
     # Pre-fetch shared data to avoid duplicate queries
     tr = db.query(TrainingReadiness).filter_by(date=target).first()
+    weekly_running = _weekly_running_stats(db, target)
     weekly_strength = _weekly_strength_stats(db, target)
     start_30d = target - timedelta(days=30)
     strength_act_ids = [
@@ -873,8 +884,8 @@ def get_overview(db: Session = Depends(get_db)):
     ]
 
     categories = {
-        "running": _build_running(db, target, perf, goals),
-        "strength": _build_strength(db, target, perf, body_comp, strength_act_ids, weekly_strength),
+        "running": _build_running(db, target, perf, goals, weekly_running),
+        "strength": _build_strength(db, target, perf, body_comp, strength_act_ids, weekly_strength, nutrition),
         "recovery": _build_recovery(db, target, perf, daily, sleep, tr),
         "sleep": _build_sleep(db, target, perf, sleep, daily),
         "body": _build_body(db, target, perf, body_comp, nutrition),
@@ -894,6 +905,7 @@ def get_overview(db: Session = Depends(get_db)):
         strength_act_ids,
         weekly_strength,
         glucose,
+        weekly_running,
     )
 
     return OverviewResponse(
