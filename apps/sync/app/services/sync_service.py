@@ -53,7 +53,9 @@ class SyncService:
         self.db.refresh(record)
         return record
 
-    def sync_daily_summary(self, target_date: date) -> DailySummary:
+    def sync_daily_summary(
+        self, target_date: date, stress_data: dict | None = None
+    ) -> DailySummary:
         date_str = target_date.isoformat()
         stats = self.garmin.get_daily_summary(date_str)
         hr = self.garmin.get_heart_rates(date_str)
@@ -71,8 +73,8 @@ class SyncService:
             intensity_mod = None
             intensity_vig = None
 
-        # Single API call; prefer detailed array, fall back to aggregate fields
-        stress = self.garmin.get_stress_data(date_str)
+        # Reuse pre-fetched stress data when available to avoid duplicate API call
+        stress = stress_data if stress_data is not None else self.garmin.get_stress_data(date_str)
         stress_detail = stress.get("stressValuesArray", [])
         if stress_detail:
             stress_result = process_stress_data(stress_detail)
@@ -427,13 +429,13 @@ class SyncService:
         }
         return self._upsert(GlucoseDaily, "date", target_date, values)
 
-    def sync_stress_readings(self, target_date: date) -> int:
+    def sync_stress_readings(self, target_date: date, stress_data: dict | None = None) -> int:
         """Sync raw stress data points into stress_readings table.
 
         Returns number of readings stored.
         """
         date_str = target_date.isoformat()
-        stress = self.garmin.get_stress_data(date_str)
+        stress = stress_data if stress_data is not None else self.garmin.get_stress_data(date_str)
         values_array = stress.get("stressValuesArray", [])
         if not values_array:
             return 0
@@ -455,7 +457,10 @@ class SyncService:
         return count
 
     def sync_all(self, target_date: date):
-        self.sync_daily_summary(target_date)
+        # Fetch stress data once and share across methods that need it
+        stress_data = self.garmin.get_stress_data(target_date.isoformat())
+
+        self.sync_daily_summary(target_date, stress_data=stress_data)
         self.sync_sleep(target_date)
         self.sync_activities(target_date)
         self.sync_nutrition(target_date)
@@ -463,3 +468,4 @@ class SyncService:
         self.sync_race_predictions(target_date)
         self.sync_training_readiness(target_date)
         self.sync_glucose(target_date)
+        self.sync_stress_readings(target_date, stress_data=stress_data)

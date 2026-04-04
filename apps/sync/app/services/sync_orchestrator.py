@@ -13,13 +13,27 @@ from app.services.sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
+# Cached Garmin client — avoids a fresh login() on every sync invocation.
+_garmin_client: GarminClient | None = None
+
+
+def _get_garmin_client(force_new: bool = False) -> GarminClient:
+    """Return a cached GarminClient, creating one only on first call or after auth failure."""
+    global _garmin_client
+    if _garmin_client is None or force_new:
+        _garmin_client = GarminClient(
+            email=settings.garmin_email, password=settings.garmin_password
+        )
+        _garmin_client.login()
+        logger.info("Garmin client logged in (new session)")
+    return _garmin_client
+
 
 def run_sync_for_date(target_date: date) -> None:
     """Run full sync pipeline for a target date."""
     db = SessionLocal()
     try:
-        garmin = GarminClient(email=settings.garmin_email, password=settings.garmin_password)
-        garmin.login()
+        garmin = _get_garmin_client()
 
         # Read MFP cookies from DB user record, fall back to env var
         user = db.query(User).first()
@@ -43,7 +57,14 @@ def run_sync_for_date(target_date: date) -> None:
             )
 
         sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
-        sync.sync_all(target_date)
+        try:
+            sync.sync_all(target_date)
+        except Exception:
+            # Session may have expired — force a fresh login and retry once
+            logger.warning("Sync failed, retrying with fresh Garmin session")
+            garmin = _get_garmin_client(force_new=True)
+            sync.garmin = garmin
+            sync.sync_all(target_date)
         updater = PerformanceUpdater(db=db, garmin=garmin)
         updater.update(target_date)
         if settings.google_service_account_json and settings.google_spreadsheet_id:
@@ -75,8 +96,7 @@ def run_frequent_sync() -> None:
     """Lightweight sync for intraday data: nutrition (MFP) + stress readings."""
     db = SessionLocal()
     try:
-        garmin = GarminClient(email=settings.garmin_email, password=settings.garmin_password)
-        garmin.login()
+        garmin = _get_garmin_client()
 
         user = db.query(User).first()
         mfp_cookies = (
@@ -92,10 +112,17 @@ def run_frequent_sync() -> None:
 
         sync = SyncService(db=db, garmin=garmin, mfp=mfp)
         today = date.today()
-        sync.sync_nutrition(today)
-        sync.sync_stress_readings(today)
+        try:
+            sync.sync_nutrition(today)
+            sync.sync_stress_readings(today)
+        except Exception:
+            logger.warning("Frequent sync failed, retrying with fresh Garmin session")
+            garmin = _get_garmin_client(force_new=True)
+            sync.garmin = garmin
+            sync.sync_nutrition(today)
+            sync.sync_stress_readings(today)
         logger.info(f"Frequent sync completed for {today}")
     except Exception:
-        logger.exception("Frequent sync failed")
+        logger.exception("Frequent sync failed after retry")
     finally:
         db.close()
