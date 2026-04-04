@@ -56,17 +56,21 @@ def run_sync_for_date(target_date: date) -> None:
                 base_url=settings.nightscout_url, token=settings.nightscout_token
             )
 
+        # Each sync source is isolated so one failure doesn't block the others.
         sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
         try:
-            sync.sync_all(target_date)
+            try:
+                sync.sync_all(target_date)
+            except Exception:
+                logger.warning("Sync failed, retrying with fresh Garmin session")
+                garmin = _get_garmin_client(force_new=True)
+                sync.garmin = garmin
+                sync.sync_all(target_date)
+            updater = PerformanceUpdater(db=db, garmin=garmin)
+            updater.update(target_date)
         except Exception:
-            # Session may have expired — force a fresh login and retry once
-            logger.warning("Sync failed, retrying with fresh Garmin session")
-            garmin = _get_garmin_client(force_new=True)
-            sync.garmin = garmin
-            sync.sync_all(target_date)
-        updater = PerformanceUpdater(db=db, garmin=garmin)
-        updater.update(target_date)
+            logger.exception("Garmin sync failed")
+
         if settings.google_service_account_json and settings.google_spreadsheet_id:
             try:
                 exporter = GoogleSheetsExporter(
@@ -77,6 +81,7 @@ def run_sync_for_date(target_date: date) -> None:
                 exporter.export(target_date)
             except Exception:
                 logger.exception("Google Sheets export failed")
+
         if settings.tp_enabled and settings.tp_auth_cookie:
             try:
                 from app.services.tp_sync_service import TPSyncService
