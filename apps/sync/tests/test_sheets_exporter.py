@@ -10,6 +10,7 @@ from app.models import DailySummary, NutritionDaily, PerformanceMetric, SleepSes
 from app.models.body_composition import BodyComposition
 from app.models.training_readiness import TrainingReadiness
 from app.services.sheets_exporter import HEADERS, GoogleSheetsExporter
+from app.services.sync_orchestrator import run_sync_for_date
 
 
 @pytest.fixture
@@ -29,48 +30,60 @@ def target_date():
 
 def _seed_full_data(db, target_date):
     """Insert one row into each table for target_date."""
-    db.add(DailySummary(
-        date=target_date,
-        calories_total=2500,
-        calories_active=800,
-        distance_m=8500.0,
-        resting_hr=52,
-        stress_avg=30,
-        body_battery_high=80,
-        body_battery_low=25,
-    ))
-    db.add(SleepSession(
-        date=target_date,
-        sleep_score=82,
-        total_sleep_min=450,
-        avg_hrv=45.0,
-    ))
-    db.add(PerformanceMetric(
-        date=target_date,
-        recovery_score=72.3,
-        tss=85.6,
-        atl=65.2,
-        ctl=55.8,
-        tsb=-9.4,
-        vo2max=48.3,
-    ))
-    db.add(BodyComposition(
-        date=target_date,
-        weight_kg=75.4,
-        body_fat_pct=15.2,
-    ))
-    db.add(TrainingReadiness(
-        date=target_date,
-        score=68,
-    ))
-    db.add(NutritionDaily(
-        date=target_date,
-        calories=2200,
-        protein_g=150.0,
-        carbs_g=250.0,
-        fat_g=80.0,
-        fiber_g=30.0,
-    ))
+    db.add(
+        DailySummary(
+            date=target_date,
+            calories_total=2500,
+            calories_active=800,
+            distance_m=8500.0,
+            resting_hr=52,
+            stress_avg=30,
+            body_battery_high=80,
+            body_battery_low=25,
+        )
+    )
+    db.add(
+        SleepSession(
+            date=target_date,
+            sleep_score=82,
+            total_sleep_min=450,
+            avg_hrv=45.0,
+        )
+    )
+    db.add(
+        PerformanceMetric(
+            date=target_date,
+            recovery_score=72.3,
+            tss=85.6,
+            atl=65.2,
+            ctl=55.8,
+            tsb=-9.4,
+            vo2max=48.3,
+        )
+    )
+    db.add(
+        BodyComposition(
+            date=target_date,
+            weight_kg=75.4,
+            body_fat_pct=15.2,
+        )
+    )
+    db.add(
+        TrainingReadiness(
+            date=target_date,
+            score=68,
+        )
+    )
+    db.add(
+        NutritionDaily(
+            date=target_date,
+            calories=2200,
+            protein_g=150.0,
+            carbs_g=250.0,
+            fat_g=80.0,
+            fiber_g=30.0,
+        )
+    )
     db.commit()
 
 
@@ -143,11 +156,13 @@ def test_export_updates_existing_date(db_session, target_date):
 
 
 def test_export_with_missing_db_records(db_session, target_date):
-    db_session.add(DailySummary(
-        date=target_date,
-        calories_total=2500,
-        resting_hr=52,
-    ))
+    db_session.add(
+        DailySummary(
+            date=target_date,
+            calories_total=2500,
+            resting_hr=52,
+        )
+    )
     db_session.commit()
 
     mock_ws = _make_mock_worksheet(existing_dates=[])
@@ -177,9 +192,6 @@ def test_export_converts_units(db_session, target_date):
     assert data_row[12] == 85.6
 
 
-from app.services.sync_orchestrator import run_sync_for_date
-
-
 @patch("app.services.sync_orchestrator.settings")
 @patch("app.services.sync_orchestrator.SessionLocal")
 @patch("app.services.sync_orchestrator.GarminClient")
@@ -187,7 +199,12 @@ from app.services.sync_orchestrator import run_sync_for_date
 @patch("app.services.sync_orchestrator.SyncService")
 @patch("app.services.sync_orchestrator.GoogleSheetsExporter")
 def test_orchestrator_calls_exporter_when_configured(
-    mock_exporter_cls, mock_sync_cls, mock_perf_cls, mock_garmin_cls, mock_session_cls, mock_settings
+    mock_exporter_cls,
+    mock_sync_cls,
+    mock_perf_cls,
+    mock_garmin_cls,
+    mock_session_cls,
+    mock_settings,
 ):
     mock_settings.garmin_email = "test@test.com"
     mock_settings.garmin_password = "pass"
@@ -218,7 +235,12 @@ def test_orchestrator_calls_exporter_when_configured(
 @patch("app.services.sync_orchestrator.SyncService")
 @patch("app.services.sync_orchestrator.GoogleSheetsExporter")
 def test_orchestrator_skips_exporter_when_not_configured(
-    mock_exporter_cls, mock_sync_cls, mock_perf_cls, mock_garmin_cls, mock_session_cls, mock_settings
+    mock_exporter_cls,
+    mock_sync_cls,
+    mock_perf_cls,
+    mock_garmin_cls,
+    mock_session_cls,
+    mock_settings,
 ):
     mock_settings.garmin_email = "test@test.com"
     mock_settings.garmin_password = "pass"

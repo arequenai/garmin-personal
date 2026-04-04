@@ -23,7 +23,9 @@ def run_sync_for_date(target_date: date) -> None:
 
         # Read MFP cookies from DB user record, fall back to env var
         user = db.query(User).first()
-        mfp_cookies = (user.mfp_cookies if user and user.mfp_cookies else None) or settings.mfp_cookies
+        mfp_cookies = (
+            user.mfp_cookies if user and user.mfp_cookies else None
+        ) or settings.mfp_cookies
 
         mfp = None
         if mfp_cookies:
