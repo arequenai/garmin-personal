@@ -12,6 +12,7 @@ from app.routers import (
     nutrition,
     overview,
     performance,
+    plan,
     settings,
     sleep,
     sync,
@@ -47,6 +48,7 @@ app.include_router(sync.router)
 app.include_router(goals.router)
 app.include_router(overview.router)
 app.include_router(tp.router)
+app.include_router(plan.router)
 
 
 @app.get("/api/health")
