@@ -257,3 +257,29 @@ def test_orchestrator_skips_exporter_when_not_configured(
     run_sync_for_date(date(2026, 4, 4))
 
     mock_exporter_cls.assert_not_called()
+
+
+@patch("app.services.sync_orchestrator.settings")
+@patch("app.services.sync_orchestrator.SessionLocal")
+@patch("app.services.sync_orchestrator._get_garmin_client")
+@patch("app.services.sync_orchestrator.GoogleSheetsExporter")
+def test_orchestrator_exports_sheets_even_when_garmin_login_fails(
+    mock_exporter_cls,
+    mock_get_garmin,
+    mock_session_cls,
+    mock_settings,
+):
+    """Sheets export must run even when Garmin login raises."""
+    mock_get_garmin.side_effect = Exception("429 Too Many Requests")
+    mock_settings.google_service_account_json = '{"type": "service_account"}'
+    mock_settings.google_spreadsheet_id = "sheet-id"
+    mock_settings.tp_enabled = False
+    mock_settings.tp_auth_cookie = ""
+
+    mock_db = MagicMock()
+    mock_session_cls.return_value = mock_db
+
+    run_sync_for_date(date(2026, 4, 4))
+
+    mock_exporter_cls.assert_called_once()
+    mock_exporter_cls.return_value.export.assert_called_once_with(date(2026, 4, 4))

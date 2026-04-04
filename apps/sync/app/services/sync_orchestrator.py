@@ -33,32 +33,32 @@ def run_sync_for_date(target_date: date) -> None:
     """Run full sync pipeline for a target date."""
     db = SessionLocal()
     try:
-        garmin = _get_garmin_client()
-
-        # Read MFP cookies from DB user record, fall back to env var
-        user = db.query(User).first()
-        mfp_cookies = (
-            user.mfp_cookies if user and user.mfp_cookies else None
-        ) or settings.mfp_cookies
-
-        mfp = None
-        if mfp_cookies:
-            from app.services.mfp_client import MFPClient
-
-            mfp = MFPClient(cookies_json=mfp_cookies)
-            mfp.login()
-
-        nightscout = None
-        if settings.nightscout_url and settings.nightscout_token:
-            from app.services.nightscout_client import NightscoutClient
-
-            nightscout = NightscoutClient(
-                base_url=settings.nightscout_url, token=settings.nightscout_token
-            )
-
-        # Each sync source is isolated so one failure doesn't block the others.
-        sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
+        # --- Garmin sync (may fail without blocking downstream steps) ---
         try:
+            garmin = _get_garmin_client()
+
+            # Read MFP cookies from DB user record, fall back to env var
+            user = db.query(User).first()
+            mfp_cookies = (
+                user.mfp_cookies if user and user.mfp_cookies else None
+            ) or settings.mfp_cookies
+
+            mfp = None
+            if mfp_cookies:
+                from app.services.mfp_client import MFPClient
+
+                mfp = MFPClient(cookies_json=mfp_cookies)
+                mfp.login()
+
+            nightscout = None
+            if settings.nightscout_url and settings.nightscout_token:
+                from app.services.nightscout_client import NightscoutClient
+
+                nightscout = NightscoutClient(
+                    base_url=settings.nightscout_url, token=settings.nightscout_token
+                )
+
+            sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
             try:
                 sync.sync_all(target_date)
             except Exception:
@@ -71,6 +71,7 @@ def run_sync_for_date(target_date: date) -> None:
         except Exception:
             logger.exception("Garmin sync failed")
 
+        # --- Google Sheets export (reads from DB, independent of Garmin) ---
         if settings.google_service_account_json and settings.google_spreadsheet_id:
             try:
                 exporter = GoogleSheetsExporter(
@@ -79,9 +80,11 @@ def run_sync_for_date(target_date: date) -> None:
                     credentials_json=settings.google_service_account_json,
                 )
                 exporter.export(target_date)
+                logger.info("Google Sheets export completed for %s", target_date)
             except Exception:
                 logger.exception("Google Sheets export failed")
 
+        # --- TrainingPeaks sync (independent of Garmin) ---
         if settings.tp_enabled and settings.tp_auth_cookie:
             try:
                 from app.services.tp_sync_service import TPSyncService
