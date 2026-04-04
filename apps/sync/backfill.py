@@ -5,9 +5,6 @@ import logging
 import time
 from datetime import date, timedelta
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
-
 from app.config import settings
 from app.database import SessionLocal
 from app.models import User
@@ -15,8 +12,11 @@ from app.services.garmin_client import GarminClient
 from app.services.performance_updater import PerformanceUpdater
 from app.services.sync_service import SyncService
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
+
 DAYS = 365
-RESUME_FROM = date(2025, 6, 30)  # day after last successful sync
+RESUME_FROM = date(2025, 10, 23)  # day after last successful sync
 today = date.today()
 
 # Single login for the whole run

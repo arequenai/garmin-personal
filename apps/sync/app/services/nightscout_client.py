@@ -1,7 +1,7 @@
 """Nightscout CGM client for fetching glucose entries and computing daily aggregates."""
 
 import logging
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 import httpx
 
@@ -19,7 +19,7 @@ class NightscoutClient:
         Calls {base_url}/api/v1/entries.json with token in header and date filters.
         """
         start_ms = int(
-            datetime.combine(start_date, time.min, tzinfo=timezone.utc).timestamp() * 1000
+            datetime.combine(start_date, time.min, tzinfo=UTC).timestamp() * 1000
         )
         params = {
             "token": self.token,
@@ -28,7 +28,7 @@ class NightscoutClient:
         }
         if end_date is not None:
             end_ms = int(
-                datetime.combine(end_date, time.min, tzinfo=timezone.utc).timestamp() * 1000
+                datetime.combine(end_date, time.min, tzinfo=UTC).timestamp() * 1000
             )
             params["find[date][$lt]"] = end_ms
 
@@ -75,7 +75,7 @@ class NightscoutClient:
         # Fasting glucose: reading closest to hour==6, else first reading
         fasting = None
         for r in readings:
-            dt = datetime.fromtimestamp(r["date"] / 1000, tz=timezone.utc)
+            dt = datetime.fromtimestamp(r["date"] / 1000, tz=UTC)
             if dt.hour == 6:
                 fasting = r["sgv"]
                 break

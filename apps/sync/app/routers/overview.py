@@ -692,7 +692,9 @@ def _build_daily_sections(
     )
 
     # ── Recovery (3 metrics) ──
-    recovery_score = round(perf.recovery_score) if perf and perf.recovery_score is not None else None
+    recovery_score = (
+        round(perf.recovery_score) if perf and perf.recovery_score is not None else None
+    )
     sections.append(
         DailySection(
             id="recovery",
@@ -885,7 +887,9 @@ def get_overview(db: Session = Depends(get_db)):
 
     categories = {
         "running": _build_running(db, target, perf, goals, weekly_running),
-        "strength": _build_strength(db, target, perf, body_comp, strength_act_ids, weekly_strength, nutrition),
+        "strength": _build_strength(
+            db, target, perf, body_comp, strength_act_ids, weekly_strength, nutrition
+        ),
         "recovery": _build_recovery(db, target, perf, daily, sleep, tr),
         "sleep": _build_sleep(db, target, perf, sleep, daily),
         "body": _build_body(db, target, perf, body_comp, nutrition),
