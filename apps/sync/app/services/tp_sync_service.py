@@ -112,10 +112,16 @@ class TPSyncService:
             self._upsert(TPCompletedWorkout, "tp_workout_id", workout_id, values)
 
     def sync_all(self, target_date: date) -> None:
-        """Run all TP sync steps."""
+        """Run all TP sync steps. Each step is isolated so one failure doesn't block others."""
         self.sync_fitness(target_date)
-        self.sync_planned_workouts(target_date)
-        self.sync_completed_workouts(target_date)
+        try:
+            self.sync_planned_workouts(target_date)
+        except Exception:
+            logger.warning("TP planned workouts sync failed for %s", target_date, exc_info=True)
+        try:
+            self.sync_completed_workouts(target_date)
+        except Exception:
+            logger.warning("TP completed workouts sync failed for %s", target_date, exc_info=True)
 
     @staticmethod
     def _resolve_workout_type(workout: dict) -> str | None:
