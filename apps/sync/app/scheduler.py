@@ -28,11 +28,10 @@ def frequent_sync_job():
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(daily_sync_job, "cron", hour=5, minute=0, id="daily_sync")
-# Temporarily disabled — Garmin SSO is rate-limiting (429). Re-enable once cooldown passes.
-# scheduler.add_job(
-#     frequent_sync_job,
-#     "cron",
-#     minute="*/15",
-#     hour="7-23",
-#     id="frequent_sync",
-# )
+scheduler.add_job(
+    frequent_sync_job,
+    "cron",
+    minute="*/15",
+    hour="7-23",
+    id="frequent_sync",
+)
