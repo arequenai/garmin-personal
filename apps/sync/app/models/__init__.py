@@ -8,6 +8,9 @@ from app.models.performance_metric import PerformanceMetric
 from app.models.race_prediction import RacePrediction
 from app.models.sleep_session import SleepSession
 from app.models.strength_session import StrengthSession
+from app.models.tp_completed_workout import TPCompletedWorkout
+from app.models.tp_fitness_data import TPFitnessData
+from app.models.tp_planned_workout import TPPlannedWorkout
 from app.models.training_readiness import TrainingReadiness
 from app.models.user import User
 from app.models.user_goal import UserGoal
@@ -26,4 +29,7 @@ __all__ = [
     "ExerciseSet",
     "UserGoal",
     "GlucoseDaily",
+    "TPFitnessData",
+    "TPPlannedWorkout",
+    "TPCompletedWorkout",
 ]
