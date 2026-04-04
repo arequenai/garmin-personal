@@ -94,6 +94,72 @@ def run_sync_for_date(target_date: date) -> None:
             except Exception:
                 logger.exception("Nightscout glucose sync failed")
 
+        # --- Fitbit body composition (independent of Garmin) ---
+        fitbit_access = (
+            user.fitbit_access_token if user and user.fitbit_access_token else None
+        ) or settings.fitbit_access_token
+        fitbit_refresh = (
+            user.fitbit_refresh_token if user and user.fitbit_refresh_token else None
+        ) or settings.fitbit_refresh_token
+        if fitbit_access and settings.fitbit_client_id:
+            try:
+                from app.models.body_composition import BodyComposition
+                from app.services.fitbit_client import FitbitClient
+
+                fb = FitbitClient(
+                    client_id=settings.fitbit_client_id,
+                    client_secret=settings.fitbit_client_secret,
+                    access_token=fitbit_access,
+                    refresh_token=fitbit_refresh,
+                )
+                weights = fb.get_weight(target_date)
+                fats = fb.get_body_fat(target_date)
+
+                if weights or fats:
+                    weight_kg = None
+                    if weights:
+                        weight_kg = weights[-1].get("weight")
+                    body_fat_pct = None
+                    if fats:
+                        body_fat_pct = fats[-1].get("fat")
+                    bmi = None
+                    if weights:
+                        bmi = weights[-1].get("bmi")
+
+                    existing = (
+                        db.query(BodyComposition)
+                        .filter_by(date=target_date)
+                        .first()
+                    )
+                    if existing:
+                        if weight_kg is not None:
+                            existing.weight_kg = weight_kg
+                        if body_fat_pct is not None:
+                            existing.body_fat_pct = body_fat_pct
+                        if bmi is not None:
+                            existing.bmi = bmi
+                    else:
+                        bc = BodyComposition(
+                            date=target_date,
+                            weight_kg=weight_kg,
+                            body_fat_pct=body_fat_pct,
+                            bmi=bmi,
+                        )
+                        db.add(bc)
+                    db.commit()
+                    logger.info(
+                        "Fitbit body composition synced for %s (weight=%s, fat=%s)",
+                        target_date, weight_kg, body_fat_pct,
+                    )
+
+                # Persist refreshed tokens back to DB
+                if fb.tokens_were_refreshed and user:
+                    user.fitbit_access_token = fb.access_token
+                    user.fitbit_refresh_token = fb.refresh_token
+                    db.commit()
+            except Exception:
+                logger.exception("Fitbit body composition sync failed")
+
         # --- Garmin sync ---
         try:
             garmin = _get_garmin_client()

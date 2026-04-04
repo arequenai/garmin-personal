@@ -16,6 +16,11 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "http://localhost:3002",
     ]
+    fitbit_client_id: str = ""
+    fitbit_client_secret: str = ""
+    fitbit_redirect_uri: str = "http://localhost:8080/api/fitbit/callback"
+    fitbit_access_token: str = ""
+    fitbit_refresh_token: str = ""
     google_service_account_json: str = ""
     google_spreadsheet_id: str = ""
     tp_auth_cookie: str = ""

@@ -14,4 +14,6 @@ class User(Base):
     hr_max: Mapped[int] = mapped_column(Integer, default=190)
     hr_rest: Mapped[int] = mapped_column(Integer, default=50)
     hr_threshold: Mapped[int] = mapped_column(Integer, default=165)
+    fitbit_access_token: Mapped[str] = mapped_column(Text, default="")
+    fitbit_refresh_token: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
