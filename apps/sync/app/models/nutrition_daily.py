@@ -17,3 +17,4 @@ class NutritionDaily(Base):
     sodium_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
     calories_goal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     protein_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    alcohol_drinks: Mapped[int | None] = mapped_column(Integer, nullable=True)

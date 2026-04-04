@@ -14,5 +14,6 @@ class NutritionResponse(BaseModel):
     sodium_mg: float | None
     calories_goal: int | None = None
     protein_goal_g: float | None = None
+    alcohol_drinks: int | None = None
 
     model_config = {"from_attributes": True}
