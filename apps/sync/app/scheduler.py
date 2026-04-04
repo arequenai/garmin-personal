@@ -20,4 +20,3 @@ def daily_sync_job():
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(daily_sync_job, "cron", hour=5, minute=0, id="daily_sync")
-scheduler.add_job(daily_sync_job, "date", id="startup_sync")
