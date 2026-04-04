@@ -8,6 +8,7 @@ import { useBodyComposition } from "@/lib/hooks/use-body-composition";
 import { CaloriesChart } from "./calories-chart";
 import { MacroStackedChart } from "./macro-stacked-chart";
 import { AlcoholStrip } from "./alcohol-strip";
+import { WeightBFChart } from "./weight-bf-chart";
 
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
@@ -150,10 +151,7 @@ export function NutricionPageClient() {
                 <ChartError onRetry={() => setFrom((f) => f)} />
               </div>
             ) : (
-              /* Weight/BF chart — Task 10 */
-              <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-                <p className="text-xs text-whoop-text-muted">Weight/BF chart placeholder</p>
-              </div>
+              <WeightBFChart data={bodyComp.data!} />
             )}
           </div>
 
