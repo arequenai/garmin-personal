@@ -231,6 +231,8 @@ class SyncService:
             "fat_g": data.get("fat_g"),
             "fiber_g": data.get("fiber_g"),
             "sodium_mg": data.get("sodium_mg"),
+            "calories_goal": data.get("calories_goal"),
+            "protein_goal_g": data.get("protein_goal_g"),
         }
         return self._upsert(NutritionDaily, "date", target_date, values)
 

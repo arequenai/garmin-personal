@@ -15,3 +15,5 @@ class NutritionDaily(Base):
     fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
     fiber_g: Mapped[float | None] = mapped_column(Float, nullable=True)
     sodium_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calories_goal: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    protein_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)

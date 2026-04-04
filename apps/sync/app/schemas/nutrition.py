@@ -12,5 +12,7 @@ class NutritionResponse(BaseModel):
     fat_g: float | None
     fiber_g: float | None
     sodium_mg: float | None
+    calories_goal: int | None = None
+    protein_goal_g: float | None = None
 
     model_config = {"from_attributes": True}

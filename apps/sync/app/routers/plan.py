@@ -103,13 +103,13 @@ def _build_strip(
     perf: PerformanceMetric | None,
     goals: dict[str, UserGoal],
 ) -> list[StripMetric]:
-    # Calories
+    # Calories — prefer MFP daily goal, fall back to user_goals
     cal_val = nutrition.calories if nutrition else None
-    cal_target = _goal_val(goals, "calories")
+    cal_target = (nutrition.calories_goal if nutrition and nutrition.calories_goal else None) or _goal_val(goals, "calories")
 
-    # Protein
+    # Protein — prefer MFP daily goal, fall back to user_goals
     prot_val = nutrition.protein_g if nutrition else None
-    prot_target = _goal_val(goals, "protein")
+    prot_target = (nutrition.protein_goal_g if nutrition and nutrition.protein_goal_g else None) or _goal_val(goals, "protein")
 
     # Stress last hour
     readings = (

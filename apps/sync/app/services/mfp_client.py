@@ -69,6 +69,7 @@ class MFPClient:
                 return None
 
             totals = day.totals
+            goals = day.goals or {}
             return {
                 "calories": totals.get("calories"),
                 "protein_g": totals.get("protein"),
@@ -76,6 +77,8 @@ class MFPClient:
                 "fat_g": totals.get("fat"),
                 "fiber_g": totals.get("fiber"),
                 "sodium_mg": totals.get("sodium"),
+                "calories_goal": goals.get("calories"),
+                "protein_goal_g": goals.get("protein"),
             }
         except Exception as e:
             logger.warning(f"MFP get_day failed for {target_date}: {e}")
