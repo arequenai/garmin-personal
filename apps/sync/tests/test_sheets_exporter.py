@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -175,3 +175,63 @@ def test_export_converts_units(db_session, target_date):
     assert data_row[9] == 7.5
     assert data_row[11] == 72
     assert data_row[12] == 85.6
+
+
+from app.services.sync_orchestrator import run_sync_for_date
+
+
+@patch("app.services.sync_orchestrator.settings")
+@patch("app.services.sync_orchestrator.SessionLocal")
+@patch("app.services.sync_orchestrator.GarminClient")
+@patch("app.services.sync_orchestrator.PerformanceUpdater")
+@patch("app.services.sync_orchestrator.SyncService")
+@patch("app.services.sync_orchestrator.GoogleSheetsExporter")
+def test_orchestrator_calls_exporter_when_configured(
+    mock_exporter_cls, mock_sync_cls, mock_perf_cls, mock_garmin_cls, mock_session_cls, mock_settings
+):
+    mock_settings.garmin_email = "test@test.com"
+    mock_settings.garmin_password = "pass"
+    mock_settings.mfp_cookies = ""
+    mock_settings.nightscout_url = ""
+    mock_settings.nightscout_token = ""
+    mock_settings.google_service_account_json = '{"type": "service_account"}'
+    mock_settings.google_spreadsheet_id = "sheet-id"
+
+    mock_db = MagicMock()
+    mock_session_cls.return_value = mock_db
+    mock_db.query.return_value.first.return_value = None
+
+    run_sync_for_date(date(2026, 4, 4))
+
+    mock_exporter_cls.assert_called_once_with(
+        db=mock_db,
+        spreadsheet_id="sheet-id",
+        credentials_json='{"type": "service_account"}',
+    )
+    mock_exporter_cls.return_value.export.assert_called_once_with(date(2026, 4, 4))
+
+
+@patch("app.services.sync_orchestrator.settings")
+@patch("app.services.sync_orchestrator.SessionLocal")
+@patch("app.services.sync_orchestrator.GarminClient")
+@patch("app.services.sync_orchestrator.PerformanceUpdater")
+@patch("app.services.sync_orchestrator.SyncService")
+@patch("app.services.sync_orchestrator.GoogleSheetsExporter")
+def test_orchestrator_skips_exporter_when_not_configured(
+    mock_exporter_cls, mock_sync_cls, mock_perf_cls, mock_garmin_cls, mock_session_cls, mock_settings
+):
+    mock_settings.garmin_email = "test@test.com"
+    mock_settings.garmin_password = "pass"
+    mock_settings.mfp_cookies = ""
+    mock_settings.nightscout_url = ""
+    mock_settings.nightscout_token = ""
+    mock_settings.google_service_account_json = ""
+    mock_settings.google_spreadsheet_id = ""
+
+    mock_db = MagicMock()
+    mock_session_cls.return_value = mock_db
+    mock_db.query.return_value.first.return_value = None
+
+    run_sync_for_date(date(2026, 4, 4))
+
+    mock_exporter_cls.assert_not_called()
