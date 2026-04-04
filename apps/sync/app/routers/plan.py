@@ -15,6 +15,7 @@ from app.models import (
 )
 from app.models.exercise_set import ExerciseSet
 from app.models.stress_reading import StressReading
+from app.models.tp_fitness_data import TPFitnessData
 from app.models.user_goal import UserGoal
 from app.schemas.plan import (
     PillarData,
@@ -98,6 +99,7 @@ def _build_strip(
     daily: DailySummary | None,
     sleep: SleepSession | None,
     nutrition: NutritionDaily | None,
+    tp_fitness: TPFitnessData | None,
     perf: PerformanceMetric | None,
     goals: dict[str, UserGoal],
 ) -> list[StripMetric]:
@@ -125,8 +127,8 @@ def _build_strip(
     hrv_7d = _spark_7d(db, SleepSession, "avg_hrv", target_date)
     hrv_7d_avg = round(sum(hrv_7d) / len(hrv_7d)) if hrv_7d else None
 
-    # TSB
-    tsb_val = perf.tsb if perf else None
+    # TSB — prefer TP, fall back to internal calc
+    tsb_val = tp_fitness.tsb if tp_fitness else (perf.tsb if perf else None)
 
     # Sleep
     sleep_min = sleep.total_sleep_min if sleep else None
@@ -178,15 +180,41 @@ def _build_strip(
 
 
 def _build_p1_aerobic(
-    db: Session, target_date: date, perf: PerformanceMetric | None
+    db: Session,
+    target_date: date,
+    tp_fitness: TPFitnessData | None,
+    perf: PerformanceMetric | None,
 ) -> PillarData:
     vo2 = perf.vo2max if perf else None
-    ctl = perf.ctl if perf else None
-    atl = perf.atl if perf else None
+    # CTL/ATL from TP, fall back to internal calc
+    ctl = tp_fitness.ctl if tp_fitness else (perf.ctl if perf else None)
+    atl = tp_fitness.atl if tp_fitness else (perf.atl if perf else None)
 
-    # Weekly running stats
+    # Weekly running stats — TSS from TP completed workouts if available
     start = target_date - timedelta(days=6)
-    acts = (
+    from app.models.tp_completed_workout import TPCompletedWorkout
+
+    tp_workouts = (
+        db.query(TPCompletedWorkout)
+        .filter(TPCompletedWorkout.date >= start, TPCompletedWorkout.date <= target_date)
+        .all()
+    )
+    if tp_workouts:
+        weekly_tss = round(sum(w.tss or 0 for w in tp_workouts), 0)
+    else:
+        acts = (
+            db.query(Activity)
+            .filter(
+                Activity.date >= start,
+                Activity.date <= target_date,
+                Activity.type.in_(RUNNING_TYPES),
+            )
+            .all()
+        )
+        weekly_tss = round(sum(a.tss or 0 for a in acts), 0)
+
+    # Weekly km always from Garmin activities (most accurate GPS source)
+    run_acts = (
         db.query(Activity)
         .filter(
             Activity.date >= start,
@@ -195,8 +223,12 @@ def _build_p1_aerobic(
         )
         .all()
     )
-    weekly_km = round(sum((a.distance_m or 0) / 1000 for a in acts), 1)
-    weekly_tss = round(sum(a.tss or 0 for a in acts), 0)
+    weekly_km = round(sum((a.distance_m or 0) / 1000 for a in run_acts), 1)
+
+    # Sparklines: prefer TP for CTL, Garmin for VO2max
+    ctl_spark = _spark_7d(db, TPFitnessData, "ctl", target_date)
+    if not ctl_spark:
+        ctl_spark = _spark_7d(db, PerformanceMetric, "ctl", target_date)
 
     return PillarData(
         id="aerobic",
@@ -220,7 +252,7 @@ def _build_p1_aerobic(
                 value=_fmt(ctl),
                 unit="",
                 target=">100",
-                spark=_spark_7d(db, PerformanceMetric, "ctl", target_date),
+                spark=ctl_spark,
             ),
             PillarKPI(label="VT1 pace", value="--", unit="min/km", target="<5:00"),
         ],
@@ -467,14 +499,15 @@ def get_plan_daily(db: Session = Depends(get_db)):
     nutrition = db.query(NutritionDaily).filter_by(date=target).first()
     perf = db.query(PerformanceMetric).filter_by(date=target).first()
     body_comp = db.query(BodyComposition).filter_by(date=target).first()
+    tp_fitness = db.query(TPFitnessData).filter_by(date=target).first()
 
     all_goals = db.query(UserGoal).all()
     goals = {g.metric_key: g for g in all_goals}
 
-    strip = _build_strip(db, target, daily, sleep, nutrition, perf, goals)
+    strip = _build_strip(db, target, daily, sleep, nutrition, tp_fitness, perf, goals)
 
     pillars = [
-        _build_p1_aerobic(db, target, perf),
+        _build_p1_aerobic(db, target, tp_fitness, perf),
         _build_p2_strength(db, target),
         _build_p3_fueling(db, target, nutrition, body_comp),
         _build_p4_recovery(db, target, daily, sleep, perf),
