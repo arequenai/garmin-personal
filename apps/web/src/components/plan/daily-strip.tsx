@@ -7,7 +7,7 @@ import { fetchApi } from "@/lib/api";
 function TrendArrow({ trend }: { trend: string | null }) {
   if (!trend || trend === "flat") return null;
   const color = trend === "up" ? "text-green-400" : "text-red-400";
-  const arrow = trend === "up" ? "↑" : "↓";
+  const arrow = trend === "up" ? "\u2191" : "\u2193";
   return <span className={`ml-1 text-xs ${color}`}>{arrow}</span>;
 }
 
@@ -15,17 +15,23 @@ function MetricCard({ metric }: { metric: StripMetric }) {
   const hasProgress = metric.pct != null && metric.target;
 
   return (
-    <div className="rounded-xl border border-whoop-border bg-whoop-card p-3 text-center">
+    <div className="rounded-xl border border-whoop-border bg-whoop-card p-2.5 text-center sm:p-3">
       <div className="text-[9px] font-semibold uppercase tracking-wider text-whoop-text-muted">
         {metric.label}
       </div>
-      <div className="mt-1.5">
-        <span className="text-xl font-extrabold text-whoop-text">{metric.value}</span>
+      <div className="mt-1 sm:mt-1.5">
+        <span className="text-lg font-extrabold text-whoop-text sm:text-xl">
+          {metric.value}
+        </span>
         <TrendArrow trend={metric.trend} />
         {metric.target && (
           <>
-            <span className="mx-1 text-xs text-whoop-text-muted">/</span>
-            <span className="text-sm text-whoop-text-secondary">{metric.target}</span>
+            <span className="mx-0.5 text-[10px] text-whoop-text-muted sm:mx-1 sm:text-xs">
+              /
+            </span>
+            <span className="text-xs text-whoop-text-secondary sm:text-sm">
+              {metric.target}
+            </span>
           </>
         )}
       </div>
@@ -67,7 +73,7 @@ export function DailyStrip({ initialStrip }: DailyStripProps) {
   }, []);
 
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
       {strip.map((m) => (
         <MetricCard key={m.label} metric={m} />
       ))}
