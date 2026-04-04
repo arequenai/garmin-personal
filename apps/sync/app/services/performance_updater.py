@@ -1,5 +1,7 @@
-"""PerformanceUpdater: aggregates daily TSS, calculates ATL/CTL/TSB/recovery, syncs fitness metrics,
-and computes category scores."""
+"""PerformanceUpdater: syncs Garmin fitness metrics (VO2max, recovery score, etc.)
+and computes category scores.
+
+TSS/ATL/CTL/TSB are sourced from TrainingPeaks — this updater does NOT compute them."""
 
 import logging
 from datetime import date, timedelta
@@ -9,12 +11,9 @@ from sqlalchemy.orm import Session
 from app.constants import RUNNING_TYPES, STRENGTH_TYPE
 from app.models import Activity, DailySummary, PerformanceMetric, SleepSession
 from app.models.body_composition import BodyComposition
+from app.models.tp_fitness_data import TPFitnessData
 from app.models.training_readiness import TrainingReadiness
-from app.services.calculations import (
-    calculate_ewma,
-    calculate_recovery_score,
-    calculate_tsb,
-)
+from app.services.calculations import calculate_recovery_score
 from app.services.recovery_model import predict_recovery
 
 logger = logging.getLogger(__name__)
@@ -39,38 +38,10 @@ class PerformanceUpdater:
         self.garmin = garmin
 
     def update(self, target_date: date) -> None:
-        # Fetch only date + TSS (not full ORM objects) for efficiency
-        rows = (
-            self.db.query(Activity.date, Activity.tss)
-            .filter(Activity.date <= target_date)
-            .order_by(Activity.date)
-            .all()
-        )
-
-        # Aggregate TSS per day
-        tss_by_date: dict[date, float] = {}
-        for act_date, tss in rows:
-            tss_by_date[act_date] = tss_by_date.get(act_date, 0) + (tss or 0)
-
-        # Build daily TSS series (fill missing days with 0)
-        if tss_by_date:
-            first_date = min(tss_by_date.keys())
-        else:
-            first_date = target_date
-
-        all_tss: list[float] = []
-        current = first_date
-        while current <= target_date:
-            all_tss.append(tss_by_date.get(current, 0.0))
-            current += timedelta(days=1)
-
-        ctl = calculate_ewma(all_tss, days=42)
-        atl = calculate_ewma(all_tss, days=7)
-        tsb = calculate_tsb(ctl, atl)
-
-        # Training loads (simple sums)
-        last_7 = all_tss[-7:] if len(all_tss) >= 7 else all_tss
-        last_28 = all_tss[-28:] if len(all_tss) >= 28 else all_tss
+        # Read TSB from TP (used for recovery score fallback + category scores)
+        tp = self.db.query(TPFitnessData).filter_by(date=target_date).first()
+        ctl = tp.ctl if tp else 0.0
+        tsb = tp.tsb if tp else 0.0
 
         # Recovery score — prefer ML model, fall back to formula
         sleep = self.db.query(SleepSession).filter_by(date=target_date).first()
@@ -84,19 +55,10 @@ class PerformanceUpdater:
 
         recovery = predict_recovery(resting_hr, sleep_score, stress_avg, bb_high)
         if recovery is None:
-            # Fallback to old formula
             recovery = calculate_recovery_score(tsb, sleep_score, hrv)
-
-        daily_tss = tss_by_date.get(target_date, 0.0)
 
         values: dict = {
             "date": target_date,
-            "tss": daily_tss,
-            "atl": atl,
-            "ctl": ctl,
-            "tsb": tsb,
-            "training_load_7d": round(sum(last_7), 1),
-            "training_load_28d": round(sum(last_28), 1),
             "recovery_score": recovery,
         }
 
@@ -106,7 +68,9 @@ class PerformanceUpdater:
             values.update(fitness)
 
         # Compute category scores
-        category_scores = self._compute_category_scores(target_date, ctl, tsb, recovery, sleep)
+        category_scores = self._compute_category_scores(
+            target_date, ctl, tsb, recovery, sleep,
+        )
         values["category_scores"] = category_scores
 
         # Upsert

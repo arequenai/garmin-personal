@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 from sqlalchemy import create_engine
@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import Activity, PerformanceMetric, SleepSession
+from app.models.tp_fitness_data import TPFitnessData
 from app.services.performance_updater import PerformanceUpdater
 
 
@@ -33,52 +34,51 @@ def add_activity(db, target_date, garmin_id, tss):
 
 def test_update_creates_performance_metric(db_session):
     target = date(2026, 3, 6)
-    add_activity(db_session, target, "1", 80.0)
     updater = PerformanceUpdater(db=db_session)
     updater.update(target)
     pm = db_session.query(PerformanceMetric).filter_by(date=target).first()
     assert pm is not None
-    assert pm.tss == 80.0
-    assert pm.atl > 0
-    assert pm.ctl > 0
+    assert pm.category_scores is not None
 
 
-def test_update_aggregates_multiple_activities(db_session):
+def test_update_reads_ctl_tsb_from_tp(db_session):
     target = date(2026, 3, 6)
+    db_session.add(TPFitnessData(date=target, ctl=55.0, tsb=-10.0, atl=65.0, tss_day=80.0))
+    db_session.commit()
+    updater = PerformanceUpdater(db=db_session)
+    updater.update(target)
+    pm = db_session.query(PerformanceMetric).filter_by(date=target).first()
+    # PerformanceUpdater uses TP's CTL/TSB for category scores, not its own
+    assert pm.category_scores is not None
+    assert "recovery" in pm.category_scores
+
+
+def test_update_with_no_tp_data(db_session):
+    target = date(2026, 3, 6)
+    updater = PerformanceUpdater(db=db_session)
+    updater.update(target)
+    pm = db_session.query(PerformanceMetric).filter_by(date=target).first()
+    assert pm is not None
+    # Should still create a record even without TP data
+    assert pm.category_scores is not None
+
+
+def test_update_computes_category_scores(db_session):
+    target = date(2026, 3, 6)
+    # Add running activity for running score
     add_activity(db_session, target, "1", 50.0)
-    add_activity(db_session, target, "2", 30.0)
+    db_session.add(TPFitnessData(date=target, ctl=50.0, tsb=5.0, atl=45.0, tss_day=50.0))
+    db_session.add(SleepSession(date=target, sleep_score=80, avg_hrv=55.0))
+    db_session.commit()
     updater = PerformanceUpdater(db=db_session)
     updater.update(target)
     pm = db_session.query(PerformanceMetric).filter_by(date=target).first()
-    assert pm.tss == 80.0
-
-
-def test_update_with_no_activities(db_session):
-    target = date(2026, 3, 6)
-    updater = PerformanceUpdater(db=db_session)
-    updater.update(target)
-    pm = db_session.query(PerformanceMetric).filter_by(date=target).first()
-    # Should still create a record with 0 TSS
-    assert pm is not None
-    assert pm.tss == 0.0
-
-
-def test_update_calculates_training_loads(db_session):
-    # Add activities over multiple days
-    base_date = date(2026, 2, 1)
-    for i in range(30):
-        d = base_date + timedelta(days=i)
-        add_activity(db_session, d, str(i), 50.0)
-
-    target = base_date + timedelta(days=29)
-    updater = PerformanceUpdater(db=db_session)
-    updater.update(target)
-    pm = db_session.query(PerformanceMetric).filter_by(date=target).first()
-
-    assert pm.training_load_7d == pytest.approx(350.0, rel=0.01)  # 7 * 50
-    assert pm.training_load_28d == pytest.approx(1400.0, rel=0.01)  # 28 * 50
-    assert pm.atl > 40  # Should converge toward 50
-    assert pm.ctl > 20  # 42-day EWMA slower to converge
+    scores = pm.category_scores
+    assert "running" in scores
+    assert "strength" in scores
+    assert "recovery" in scores
+    assert "sleep" in scores
+    assert "body" in scores
 
 
 def test_update_upserts(db_session):
