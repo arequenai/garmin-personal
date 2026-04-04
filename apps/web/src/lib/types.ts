@@ -47,3 +47,50 @@ export function emptyPlanDailyData(): PlanDailyData {
     pillars: [],
   };
 }
+
+// ── Aerobico tab types ──
+
+export interface PMCDataPoint {
+  date: string;
+  ctl: number | null;
+  atl: number | null;
+  tsb: number | null;
+  tss_day: number | null;
+}
+
+export interface CalendarPlannedWorkout {
+  date: string;
+  title: string | null;
+  workout_type: string | null;
+  duration_sec_planned: number | null;
+  tss_planned: number | null;
+  distance_m_planned: number | null;
+}
+
+export interface CalendarCompletedWorkout {
+  date: string;
+  title: string | null;
+  workout_type: string | null;
+  tss: number | null;
+  distance_m: number | null;
+  duration_sec: number | null;
+}
+
+export interface CalendarData {
+  planned: CalendarPlannedWorkout[];
+  completed: CalendarCompletedWorkout[];
+}
+
+export interface WeeklyVolume {
+  week_start: string;
+  km: number;
+  elevation_m: number;
+}
+
+export interface HRZonesData {
+  zone1_sec: number;
+  zone2_sec: number;
+  zone3_sec: number;
+  zone4_sec: number;
+  zone5_sec: number;
+}
