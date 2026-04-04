@@ -28,10 +28,10 @@ class TrainingPeaksClient:
         self._token = token["access_token"]
         self._token_expires_at = time.time() + token.get("expires_in", 3600) - 60
 
-        # Fetch athlete ID from user endpoint
+        # Fetch athlete ID using the token we just obtained
         resp = httpx.get(
             f"{BASE_URL}/users/v3/user",
-            headers={"Cookie": self.auth_cookie},
+            headers={"Authorization": f"Bearer {self._token}"},
             timeout=15,
         )
         resp.raise_for_status()
