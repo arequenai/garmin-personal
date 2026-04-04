@@ -56,5 +56,16 @@ def run_sync_for_date(target_date: date) -> None:
                 exporter.export(target_date)
             except Exception:
                 logger.exception("Google Sheets export failed")
+        if settings.tp_enabled and settings.tp_auth_cookie:
+            try:
+                from app.services.tp_sync_service import TPSyncService
+                from app.services.trainingpeaks_client import TrainingPeaksClient
+
+                tp_client = TrainingPeaksClient(auth_cookie=settings.tp_auth_cookie)
+                tp_client.login()
+                tp_sync = TPSyncService(db=db, tp_client=tp_client)
+                tp_sync.sync_all(target_date)
+            except Exception:
+                logger.exception("TrainingPeaks sync failed")
     finally:
         db.close()

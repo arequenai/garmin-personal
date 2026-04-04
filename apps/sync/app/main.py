@@ -15,6 +15,7 @@ from app.routers import (
     settings,
     sleep,
     sync,
+    tp,
 )
 from app.scheduler import scheduler
 
@@ -45,6 +46,7 @@ app.include_router(daily.router)
 app.include_router(sync.router)
 app.include_router(goals.router)
 app.include_router(overview.router)
+app.include_router(tp.router)
 
 
 @app.get("/api/health")
