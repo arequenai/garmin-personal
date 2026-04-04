@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useNutritionData } from "@/lib/hooks/use-nutrition-data";
 import { useBodyComposition } from "@/lib/hooks/use-body-composition";
+import { CaloriesChart } from "./calories-chart";
 
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
@@ -131,9 +132,7 @@ export function NutricionPageClient() {
             ) : (
               <>
                 {/* Calories chart — Task 7 */}
-                <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-                  <p className="text-xs text-whoop-text-muted">Calories chart placeholder</p>
-                </div>
+                <CaloriesChart data={nutrition.data!} />
                 {/* Macro chart — Task 8 */}
                 <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
                   <p className="text-xs text-whoop-text-muted">Macro chart placeholder</p>
