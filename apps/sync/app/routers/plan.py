@@ -127,8 +127,8 @@ def _build_strip(
     hrv_7d = _spark_7d(db, SleepSession, "avg_hrv", target_date)
     hrv_7d_avg = round(sum(hrv_7d) / len(hrv_7d)) if hrv_7d else None
 
-    # TSB — prefer TP, fall back to internal calc
-    tsb_val = tp_fitness.tsb if tp_fitness else (perf.tsb if perf else None)
+    # TSB — from TrainingPeaks only
+    tsb_val = tp_fitness.tsb if tp_fitness else None
 
     # Sleep
     sleep_min = sleep.total_sleep_min if sleep else None
@@ -186,11 +186,11 @@ def _build_p1_aerobic(
     perf: PerformanceMetric | None,
 ) -> PillarData:
     vo2 = perf.vo2max if perf else None
-    # CTL/ATL from TP, fall back to internal calc
-    ctl = tp_fitness.ctl if tp_fitness else (perf.ctl if perf else None)
-    atl = tp_fitness.atl if tp_fitness else (perf.atl if perf else None)
+    # CTL/ATL from TrainingPeaks only
+    ctl = tp_fitness.ctl if tp_fitness else None
+    atl = tp_fitness.atl if tp_fitness else None
 
-    # Weekly running stats — TSS from TP completed workouts if available
+    # Weekly TSS from TP completed workouts
     start = target_date - timedelta(days=6)
     from app.models.tp_completed_workout import TPCompletedWorkout
 
@@ -199,21 +199,9 @@ def _build_p1_aerobic(
         .filter(TPCompletedWorkout.date >= start, TPCompletedWorkout.date <= target_date)
         .all()
     )
-    if tp_workouts:
-        weekly_tss = round(sum(w.tss or 0 for w in tp_workouts), 0)
-    else:
-        acts = (
-            db.query(Activity)
-            .filter(
-                Activity.date >= start,
-                Activity.date <= target_date,
-                Activity.type.in_(RUNNING_TYPES),
-            )
-            .all()
-        )
-        weekly_tss = round(sum(a.tss or 0 for a in acts), 0)
+    weekly_tss = round(sum(w.tss or 0 for w in tp_workouts), 0)
 
-    # Weekly km always from Garmin activities (most accurate GPS source)
+    # Weekly km from Garmin activities (GPS source)
     run_acts = (
         db.query(Activity)
         .filter(
@@ -224,11 +212,6 @@ def _build_p1_aerobic(
         .all()
     )
     weekly_km = round(sum((a.distance_m or 0) / 1000 for a in run_acts), 1)
-
-    # Sparklines: prefer TP for CTL, Garmin for VO2max
-    ctl_spark = _spark_7d(db, TPFitnessData, "ctl", target_date)
-    if not ctl_spark:
-        ctl_spark = _spark_7d(db, PerformanceMetric, "ctl", target_date)
 
     return PillarData(
         id="aerobic",
@@ -252,7 +235,7 @@ def _build_p1_aerobic(
                 value=_fmt(ctl),
                 unit="",
                 target=">100",
-                spark=ctl_spark,
+                spark=_spark_7d(db, TPFitnessData, "ctl", target_date),
             ),
             PillarKPI(label="VT1 pace", value="--", unit="min/km", target="<5:00"),
         ],
