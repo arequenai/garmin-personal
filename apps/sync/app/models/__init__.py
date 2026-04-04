@@ -8,6 +8,7 @@ from app.models.performance_metric import PerformanceMetric
 from app.models.race_prediction import RacePrediction
 from app.models.sleep_session import SleepSession
 from app.models.strength_session import StrengthSession
+from app.models.stress_reading import StressReading
 from app.models.tp_completed_workout import TPCompletedWorkout
 from app.models.tp_fitness_data import TPFitnessData
 from app.models.tp_planned_workout import TPPlannedWorkout
@@ -32,4 +33,5 @@ __all__ = [
     "TPFitnessData",
     "TPPlannedWorkout",
     "TPCompletedWorkout",
+    "StressReading",
 ]
