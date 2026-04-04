@@ -7,6 +7,7 @@ import { useNutritionData } from "@/lib/hooks/use-nutrition-data";
 import { useBodyComposition } from "@/lib/hooks/use-body-composition";
 import { CaloriesChart } from "./calories-chart";
 import { MacroStackedChart } from "./macro-stacked-chart";
+import { AlcoholStrip } from "./alcohol-strip";
 
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
@@ -137,9 +138,7 @@ export function NutricionPageClient() {
                 {/* Macro chart — Task 8 */}
                 <MacroStackedChart data={nutrition.data!} />
                 {/* Alcohol strip — Task 9 */}
-                <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-                  <p className="text-xs text-whoop-text-muted">Alcohol strip placeholder</p>
-                </div>
+                <AlcoholStrip data={nutrition.data!} />
               </>
             )}
 
