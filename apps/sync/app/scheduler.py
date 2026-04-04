@@ -3,7 +3,7 @@ from datetime import date
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.services.sync_orchestrator import run_sync_for_date, run_frequent_sync
+from app.services.sync_orchestrator import run_frequent_sync, run_sync_for_date
 
 logger = logging.getLogger(__name__)
 

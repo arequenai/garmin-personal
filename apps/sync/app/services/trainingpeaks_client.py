@@ -16,20 +16,30 @@ class TrainingPeaksClient:
         self._token_expires_at: float = 0
 
     def login(self) -> None:
-        """Exchange auth cookie for an OAuth token."""
-        resp = httpx.post(
+        """Exchange auth cookie for an OAuth token via GET /users/v3/token."""
+        resp = httpx.get(
             f"{BASE_URL}/users/v3/token",
             headers={"Cookie": self.auth_cookie},
+            timeout=15,
         )
         resp.raise_for_status()
         data = resp.json()
-        self._token = data["access_token"]
-        self._athlete_id = str(data["userId"])
-        self._token_expires_at = time.time() + data.get("expires_in", 3600) - 60
+        token = data["token"]
+        self._token = token["access_token"]
+        self._token_expires_at = time.time() + token.get("expires_in", 3600) - 60
+
+        # Fetch athlete ID from user endpoint
+        resp = httpx.get(
+            f"{BASE_URL}/users/v3/user",
+            headers={"Cookie": self.auth_cookie},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        self._athlete_id = str(resp.json()["user"]["userId"])
+        logger.info("TP login OK — athlete %s", self._athlete_id)
 
     def _ensure_token(self) -> None:
-        """Re-login if token is expired."""
-        if time.time() >= self._token_expires_at:
+        if self._token is None or time.time() >= self._token_expires_at:
             self.login()
 
     def _headers(self) -> dict[str, str]:
@@ -37,18 +47,25 @@ class TrainingPeaksClient:
         return {"Authorization": f"Bearer {self._token}"}
 
     def get_athlete_id(self) -> str:
-        """Return cached athlete ID from login response."""
         if self._athlete_id is None:
-            raise RuntimeError("Must call login() first")
+            self.login()
         return self._athlete_id
 
     def get_fitness(self, start_date: str, end_date: str) -> list[dict]:
-        """Get daily CTL/ATL/TSB fitness data."""
-        url = f"{BASE_URL}/fitness/v3/athletes/{self._athlete_id}/fitness"
-        resp = httpx.get(url, headers=self._headers(), params={
-            "startDate": start_date,
-            "endDate": end_date,
-        })
+        """Get daily CTL/ATL/TSB fitness data via the reporting/performancedata endpoint."""
+        self._ensure_token()
+        url = (
+            f"{BASE_URL}/fitness/v1/athletes/{self._athlete_id}"
+            f"/reporting/performancedata/{start_date}/{end_date}"
+        )
+        body = {
+            "atlConstant": 7,
+            "atlStart": 0,
+            "ctlConstant": 42,
+            "ctlStart": 0,
+            "workoutTypes": [],
+        }
+        resp = httpx.post(url, headers=self._headers(), json=body, timeout=15)
         resp.raise_for_status()
         return resp.json()
 

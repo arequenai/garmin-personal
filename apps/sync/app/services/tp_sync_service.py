@@ -38,20 +38,17 @@ class TPSyncService:
         date_str = target_date.isoformat()
         data = self.tp.get_fitness(date_str, date_str)
         for entry in data:
-            entry_date_str = entry.get("date") or entry.get("calendarDate")
-            if not entry_date_str:
+            raw = entry.get("workoutDay") or entry.get("date") or entry.get("calendarDate")
+            if not raw:
                 continue
-            entry_date = date.fromisoformat(entry_date_str)
+            entry_date = date.fromisoformat(raw[:10])
             values = {
                 "date": entry_date,
                 "ctl": entry.get("ctl"),
                 "atl": entry.get("atl"),
                 "tsb": entry.get("tsb"),
-                "tss_day": entry.get("tpiTssActual") or entry.get("tssActual"),
-                "training_load_7d": entry.get("trainingLoad7d"),
-                "training_load_28d": entry.get("trainingLoad28d"),
+                "tss_day": entry.get("tssActual", entry.get("tpiTssActual")),
                 "intensity_factor": entry.get("ifActual"),
-                "ramp_rate": entry.get("rampRate"),
             }
             self._upsert(TPFitnessData, "date", entry_date, values)
 
