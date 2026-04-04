@@ -14,6 +14,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "httpx>=0.28.0",
     "myfitnesspal>=2.1.0",
+    "gspread>=6.0.0",
 ]
 
 [dependency-groups]
