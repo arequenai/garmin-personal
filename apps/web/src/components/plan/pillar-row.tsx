@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import type { PillarData } from "@/lib/types";
 import { Sparkline7d } from "./sparkline-7d";
 
@@ -62,6 +64,15 @@ export function PillarRow({ pillar, expanded, onToggle }: PillarRowProps) {
           >
             &#9656;
           </span>
+          {pillar.id === "aerobic" && (
+            <Link
+              href="/aerobico"
+              onClick={(e) => e.stopPropagation()}
+              className="ml-1 text-whoop-text-muted hover:text-whoop-text transition-colors"
+            >
+              <ChevronRight size={14} />
+            </Link>
+          )}
         </div>
       </button>
 
