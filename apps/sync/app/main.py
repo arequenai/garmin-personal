@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings as app_settings
 from app.routers import (
     activities,
+    aerobico,
     daily,
     dashboard,
     goals,
@@ -52,6 +53,7 @@ app.include_router(goals.router)
 app.include_router(overview.router)
 app.include_router(tp.router)
 app.include_router(plan.router)
+app.include_router(aerobico.router)
 
 
 @app.get("/api/health")
