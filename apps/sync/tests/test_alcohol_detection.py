@@ -70,6 +70,42 @@ def test_alcohol_detection_zero_when_no_drinks(db_session):
     assert record.alcohol_drinks == 0
 
 
+def test_alcohol_detection_excludes_non_alcoholic(db_session):
+    """Non-alcoholic beer ('sin alcohol', '00') should NOT be counted."""
+    entries = [
+        {"name": "Mahou 00 Tostada - Cerveza Sin Alcohol, 33 centilitro", "meal": "Dinner"},
+        {"name": "Mahou - Cerveza Clásica, 1 Lata", "meal": "Dinner"},
+        {"name": "Generic - Vino Tinto, 1 Copa 150 Cc., 1.5 copa 150 gr.", "meal": "Dinner"},
+    ]
+    mock_mfp = _make_mfp_mock(entries)
+    mock_garmin = MagicMock()
+
+    service = SyncService(db=db_session, garmin=mock_garmin, mfp=mock_mfp)
+    service.sync_nutrition(date(2026, 3, 6))
+
+    record = db_session.query(NutritionDaily).filter_by(date=date(2026, 3, 6)).first()
+    assert record is not None
+    assert record.alcohol_drinks == 2  # Mahou 00 excluded, Cerveza + Vino counted
+
+
+def test_alcohol_detection_spanish_keywords(db_session):
+    """Spanish keywords: cerveza, vino, chupito, copa."""
+    entries = [
+        {"name": "Bar - Chupito de tequila", "meal": "Dinner"},
+        {"name": "Bar - Copa de ginebra", "meal": "Dinner"},
+        {"name": "Arroz Blanco - Arroz Blanco Cocido, 200 gram", "meal": "Lunch"},
+    ]
+    mock_mfp = _make_mfp_mock(entries)
+    mock_garmin = MagicMock()
+
+    service = SyncService(db=db_session, garmin=mock_garmin, mfp=mock_mfp)
+    service.sync_nutrition(date(2026, 3, 6))
+
+    record = db_session.query(NutritionDaily).filter_by(date=date(2026, 3, 6)).first()
+    assert record is not None
+    assert record.alcohol_drinks == 2
+
+
 def test_alcohol_detection_no_entries_key(db_session):
     """When MFP returns no entries (old format), alcohol_drinks should be None."""
     mock_mfp = MagicMock()

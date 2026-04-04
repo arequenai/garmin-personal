@@ -24,23 +24,21 @@ from app.services.garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
 
-# Alcohol keywords — determined by one-time analysis of MFP food entry names.
-# Each keyword is matched case-insensitively against the food entry name.
+# Alcohol keywords — derived from LLM analysis of 90 days of MFP food entries.
+# Matched case-insensitively. Entries containing ALCOHOL_EXCLUDE are skipped.
 ALCOHOL_KEYWORDS = [
-    "beer", "wine", "vodka", "whiskey", "gin", "rum", "tequila",
-    "cocktail", "margarita", "cerveza", "seltzer", "cider", "sangria",
-    "bourbon", "scotch", "champagne", "prosecco", "mezcal", "sake",
-    "malbec", "cabernet", "merlot", "ipa", "lager", "ale", "stout",
-    "corona", "heineken", "aperol", "spritz", "negroni", "daiquiri",
-    "mojito", "piña colada", "michelada", "paloma",
+    "cerveza", "vino", "beer", "wine", "chupito", "copa",
 ]
+ALCOHOL_EXCLUDE = ["sin alcohol", " 00 ", " 0.0"]
 
 
 def _count_alcohol_drinks(entries: list[dict]) -> int:
-    """Count food entries that match alcohol keywords."""
+    """Count food entries that match alcohol keywords, excluding non-alcoholic."""
     count = 0
     for entry in entries:
         name = entry.get("name", "").lower()
+        if any(ex in name for ex in ALCOHOL_EXCLUDE):
+            continue
         if any(kw in name for kw in ALCOHOL_KEYWORDS):
             count += 1
     return count
