@@ -60,7 +60,8 @@ def get_volume(
     to_date: date = Query(default_factory=lambda: date.today()),
     db: Session = Depends(get_db),
 ):
-    activities = (
+    # Garmin activities (have elevation data)
+    garmin = (
         db.query(Activity)
         .filter(
             Activity.date >= from_date,
@@ -70,13 +71,45 @@ def get_volume(
         .all()
     )
 
+    # TP completed workouts with running type (broader date coverage)
+    tp_running_keywords = ("run",)
+    tp = (
+        db.query(TPCompletedWorkout)
+        .filter(
+            TPCompletedWorkout.date >= from_date,
+            TPCompletedWorkout.date <= to_date,
+        )
+        .all()
+    )
+
     weeks: dict[date, dict] = {}
-    for a in activities:
+
+    # Track Garmin dates to avoid double-counting
+    garmin_dates_with_distance: set[tuple[date, float]] = set()
+    for a in garmin:
         week_start = a.date - timedelta(days=a.date.weekday())
         if week_start not in weeks:
             weeks[week_start] = {"km": 0.0, "elevation_m": 0.0}
-        weeks[week_start]["km"] += round((a.distance_m or 0) / 1000, 2)
+        km = round((a.distance_m or 0) / 1000, 2)
+        weeks[week_start]["km"] += km
         weeks[week_start]["elevation_m"] += float(a.elevation_gain or 0)
+        if km > 0:
+            garmin_dates_with_distance.add((a.date, round(km, 1)))
+
+    # Fill in from TP for dates/distances not already covered by Garmin
+    for w in tp:
+        wtype = (w.workout_type or "").lower()
+        if not any(kw in wtype for kw in tp_running_keywords):
+            continue
+        km = round((w.distance_m or 0) / 1000, 1)
+        if km <= 0:
+            continue
+        if (w.date, km) in garmin_dates_with_distance:
+            continue
+        week_start = w.date - timedelta(days=w.date.weekday())
+        if week_start not in weeks:
+            weeks[week_start] = {"km": 0.0, "elevation_m": 0.0}
+        weeks[week_start]["km"] += km
 
     result = [
         WeeklyVolume(

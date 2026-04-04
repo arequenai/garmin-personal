@@ -6,8 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models import DailySummary, NutritionDaily, PerformanceMetric, SleepSession
+from app.models import DailySummary, NutritionDaily, SleepSession
 from app.models.body_composition import BodyComposition
+from app.models.tp_fitness_data import TPFitnessData
 from app.models.training_readiness import TrainingReadiness
 from app.services.sheets_exporter import HEADERS, GoogleSheetsExporter
 from app.services.sync_orchestrator import run_sync_for_date
@@ -51,14 +52,12 @@ def _seed_full_data(db, target_date):
         )
     )
     db.add(
-        PerformanceMetric(
+        TPFitnessData(
             date=target_date,
-            recovery_score=72.3,
-            tss=85.6,
+            tss_day=85.6,
             atl=65.2,
             ctl=55.8,
             tsb=-9.4,
-            vo2max=48.3,
         )
     )
     db.add(
@@ -173,9 +172,9 @@ def test_export_with_missing_db_records(db_session, target_date):
     data_row = mock_ws.append_row.call_args[0][0]
     assert data_row[0] == "2026-04-04"
     assert data_row[1] == 2500
-    assert data_row[8] == ""
-    assert data_row[11] == ""
-    assert data_row[20] == ""
+    assert data_row[8] == ""   # sleep_score
+    assert data_row[12] == ""  # TSS (no TP data)
+    assert data_row[20] == ""  # nutrition calories
 
 
 def test_export_converts_units(db_session, target_date):
@@ -186,22 +185,22 @@ def test_export_converts_units(db_session, target_date):
     exporter.export(target_date)
 
     data_row = mock_ws.append_row.call_args[0][0]
-    assert data_row[3] == 8.5
-    assert data_row[9] == 7.5
-    assert data_row[11] == 72
-    assert data_row[12] == 85.6
+    assert data_row[3] == 8.5     # distance km
+    assert data_row[9] == 7.5     # sleep hrs
+    assert data_row[12] == 85.6   # TSS from TP
+    assert data_row[13] == 65.2   # ATL from TP
+    assert data_row[14] == 55.8   # CTL from TP
+    assert data_row[15] == -9.4   # TSB from TP
 
 
 @patch("app.services.sync_orchestrator.settings")
 @patch("app.services.sync_orchestrator.SessionLocal")
 @patch("app.services.sync_orchestrator.GarminClient")
-@patch("app.services.sync_orchestrator.PerformanceUpdater")
 @patch("app.services.sync_orchestrator.SyncService")
 @patch("app.services.sync_orchestrator.GoogleSheetsExporter")
 def test_orchestrator_calls_exporter_when_configured(
     mock_exporter_cls,
     mock_sync_cls,
-    mock_perf_cls,
     mock_garmin_cls,
     mock_session_cls,
     mock_settings,
@@ -231,13 +230,11 @@ def test_orchestrator_calls_exporter_when_configured(
 @patch("app.services.sync_orchestrator.settings")
 @patch("app.services.sync_orchestrator.SessionLocal")
 @patch("app.services.sync_orchestrator.GarminClient")
-@patch("app.services.sync_orchestrator.PerformanceUpdater")
 @patch("app.services.sync_orchestrator.SyncService")
 @patch("app.services.sync_orchestrator.GoogleSheetsExporter")
 def test_orchestrator_skips_exporter_when_not_configured(
     mock_exporter_cls,
     mock_sync_cls,
-    mock_perf_cls,
     mock_garmin_cls,
     mock_session_cls,
     mock_settings,

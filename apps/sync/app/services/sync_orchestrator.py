@@ -8,7 +8,6 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import User
 from app.services.garmin_client import GarminClient
-from app.services.performance_updater import PerformanceUpdater
 from app.services.sheets_exporter import GoogleSheetsExporter
 from app.services.sync_service import SyncService
 
@@ -171,8 +170,6 @@ def run_sync_for_date(target_date: date) -> None:
                 garmin = _get_garmin_client(force_new=True)
                 sync.garmin = garmin
                 sync.sync_all(target_date)
-            updater = PerformanceUpdater(db=db, garmin=garmin)
-            updater.update(target_date)
         except Exception:
             logger.exception("Garmin sync failed")
 

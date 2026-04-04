@@ -105,3 +105,90 @@ def trigger_tp_sync(
         raise HTTPException(status_code=400, detail="TrainingPeaks not configured")
     background_tasks.add_task(_run_tp_sync, days_back)
     return {"status": "tp_sync_started", "days_back": days_back}
+
+
+def _run_tp_fitness_backfill(days_back: int) -> None:
+    """Backfill TP fitness (PMC) data in a single API call."""
+    from app.database import SessionLocal
+    from app.services.tp_sync_service import TPSyncService
+    from app.services.trainingpeaks_client import TrainingPeaksClient
+
+    db = SessionLocal()
+    try:
+        tp_client = TrainingPeaksClient(auth_cookie=settings.tp_auth_cookie)
+        tp_client.login()
+        tp_sync = TPSyncService(db=db, tp_client=tp_client)
+        end = date.today()
+        start = end - timedelta(days=days_back)
+        tp_sync.sync_fitness_range(start, end)
+        logger.info("TP fitness backfill completed: %s to %s", start, end)
+    except Exception:
+        logger.error("TP fitness backfill failed", exc_info=True)
+    finally:
+        db.close()
+
+
+@router.post("/sync/fitness-backfill")
+def trigger_tp_fitness_backfill(
+    background_tasks: BackgroundTasks,
+    days_back: int = 365,
+):
+    """Backfill TP fitness/PMC data for the last N days in a single API call."""
+    if not settings.tp_enabled or not settings.tp_auth_cookie:
+        raise HTTPException(status_code=400, detail="TrainingPeaks not configured")
+    background_tasks.add_task(_run_tp_fitness_backfill, days_back)
+    start = date.today() - timedelta(days=days_back)
+    return {
+        "status": "tp_fitness_backfill_started",
+        "from_date": start.isoformat(),
+        "to_date": date.today().isoformat(),
+    }
+
+
+def _run_tp_workouts_backfill(days_back: int) -> None:
+    """Backfill TP completed workouts in 30-day chunks."""
+    from app.database import SessionLocal
+    from app.services.tp_sync_service import TPSyncService
+    from app.services.trainingpeaks_client import TrainingPeaksClient
+
+    db = SessionLocal()
+    try:
+        tp_client = TrainingPeaksClient(auth_cookie=settings.tp_auth_cookie)
+        tp_client.login()
+        tp_sync = TPSyncService(db=db, tp_client=tp_client)
+        end = date.today()
+        start = end - timedelta(days=days_back)
+        chunk_start = start
+        while chunk_start < end:
+            chunk_end = min(chunk_start + timedelta(days=30), end)
+            try:
+                tp_sync.sync_completed_workouts_range(chunk_start, chunk_end)
+                logger.info("TP workouts backfill chunk: %s to %s", chunk_start, chunk_end)
+            except Exception:
+                logger.warning(
+                    "TP workouts backfill chunk failed: %s to %s",
+                    chunk_start, chunk_end, exc_info=True,
+                )
+            chunk_start = chunk_end + timedelta(days=1)
+        logger.info("TP workouts backfill completed: %s to %s", start, end)
+    except Exception:
+        logger.error("TP workouts backfill failed", exc_info=True)
+    finally:
+        db.close()
+
+
+@router.post("/sync/workouts-backfill")
+def trigger_tp_workouts_backfill(
+    background_tasks: BackgroundTasks,
+    days_back: int = 365,
+):
+    """Backfill TP completed workouts for the last N days in a single API call."""
+    if not settings.tp_enabled or not settings.tp_auth_cookie:
+        raise HTTPException(status_code=400, detail="TrainingPeaks not configured")
+    background_tasks.add_task(_run_tp_workouts_backfill, days_back)
+    start = date.today() - timedelta(days=days_back)
+    return {
+        "status": "tp_workouts_backfill_started",
+        "from_date": start.isoformat(),
+        "to_date": date.today().isoformat(),
+    }
