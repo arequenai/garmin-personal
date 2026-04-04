@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { CalendarData, CalendarPlannedWorkout, CalendarCompletedWorkout } from "@/lib/types";
+import type { CalendarPlannedWorkout, CalendarCompletedWorkout } from "@/lib/types";
 import { useAerobicCalendar } from "@/lib/hooks/use-aerobic-calendar";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

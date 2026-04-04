@@ -27,7 +27,7 @@ const PRESETS = [
   { label: "1Y", months: 12 },
 ];
 
-function ChartError({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ChartError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-8">
       <p className="text-xs text-whoop-text-muted">Could not load data</p>
@@ -107,7 +107,7 @@ export function AerobicoPageClient() {
         )}
         {pmc.error && (
           <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-            <ChartError message={pmc.error} onRetry={retryPmc} />
+            <ChartError onRetry={retryPmc} />
           </div>
         )}
         {pmc.data && <PMCChart data={pmc.data} />}
@@ -124,7 +124,7 @@ export function AerobicoPageClient() {
             )}
             {hrZones.error && (
               <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-                <ChartError message={hrZones.error} onRetry={retryHrZones} />
+                <ChartError onRetry={retryHrZones} />
               </div>
             )}
             {hrZones.data && <HRZoneChart data={hrZones.data} />}
@@ -140,7 +140,7 @@ export function AerobicoPageClient() {
           )}
           {volume.error && (
             <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-              <ChartError message={volume.error} onRetry={retryVolume} />
+              <ChartError onRetry={retryVolume} />
             </div>
           )}
           {volume.data && <WeeklyVolumeChart data={volume.data} />}

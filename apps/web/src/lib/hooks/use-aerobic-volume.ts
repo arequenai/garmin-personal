@@ -8,21 +8,30 @@ export function useAerobicVolume(from: string, to: string) {
   const [data, setData] = useState<WeeklyVolume[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevKey, setPrevKey] = useState(`${from}-${to}`);
+
+  const key = `${from}-${to}`;
+  if (prevKey !== key) {
+    setPrevKey(key);
+    setLoading(true);
+    setError(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     fetchApi<WeeklyVolume[]>(`/api/aerobico/volume?from_date=${from}&to_date=${to}`)
       .then((result) => {
-        if (!cancelled) setData(result);
+        if (!cancelled) {
+          setData(result);
+          setLoading(false);
+        }
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
       });
 
     return () => { cancelled = true; };
