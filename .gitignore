@@ -9,6 +9,7 @@
 credentials*.json
 secrets*.json
 token*.json
+my-project-*.json
 
 # Python
 __pycache__/
