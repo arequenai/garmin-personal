@@ -62,6 +62,7 @@ export interface CalendarPlannedWorkout {
   date: string;
   title: string | null;
   workout_type: string | null;
+  description: string | null;
   duration_sec_planned: number | null;
   tss_planned: number | null;
   distance_m_planned: number | null;
@@ -71,6 +72,7 @@ export interface CalendarCompletedWorkout {
   date: string;
   title: string | null;
   workout_type: string | null;
+  description: string | null;
   tss: number | null;
   distance_m: number | null;
   duration_sec: number | null;
@@ -93,4 +95,26 @@ export interface HRZonesData {
   zone3_sec: number;
   zone4_sec: number;
   zone5_sec: number;
+}
+
+// ── Nutrición tab types ──
+
+export interface NutritionDay {
+  id: number;
+  date: string;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  sodium_mg: number | null;
+  calories_goal: number | null;
+  protein_goal_g: number | null;
+  alcohol_drinks: number | null;
+}
+
+export interface BodyCompositionDay {
+  date: string;
+  weight_kg: number | null;
+  body_fat_pct: number | null;
 }
