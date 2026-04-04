@@ -43,34 +43,60 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
 
 
 def run_sync_for_date(target_date: date) -> None:
-    """Run full sync pipeline for a target date."""
+    """Run full sync pipeline for a target date.
+
+    Each data source is isolated so one failure doesn't block the others.
+    """
     db = SessionLocal()
     try:
-        # --- Garmin sync (may fail without blocking downstream steps) ---
-        try:
-            garmin = _get_garmin_client()
+        # Read MFP cookies from DB user record, fall back to env var
+        user = db.query(User).first()
+        mfp_cookies = (
+            user.mfp_cookies if user and user.mfp_cookies else None
+        ) or settings.mfp_cookies
 
-            # Read MFP cookies from DB user record, fall back to env var
-            user = db.query(User).first()
-            mfp_cookies = (
-                user.mfp_cookies if user and user.mfp_cookies else None
-            ) or settings.mfp_cookies
-
-            mfp = None
-            if mfp_cookies:
+        mfp = None
+        if mfp_cookies:
+            try:
                 from app.services.mfp_client import MFPClient
 
                 mfp = MFPClient(cookies_json=mfp_cookies)
                 mfp.login()
+            except Exception:
+                logger.exception("MFP login failed")
 
-            nightscout = None
-            if settings.nightscout_url and settings.nightscout_token:
+        nightscout = None
+        if settings.nightscout_url and settings.nightscout_token:
+            try:
                 from app.services.nightscout_client import NightscoutClient
 
                 nightscout = NightscoutClient(
                     base_url=settings.nightscout_url, token=settings.nightscout_token
                 )
+            except Exception:
+                logger.exception("Nightscout client init failed")
 
+        # --- MFP nutrition (independent of Garmin) ---
+        if mfp:
+            try:
+                sync = SyncService(db=db, garmin=None, mfp=mfp)
+                sync.sync_nutrition(target_date)
+                logger.info("MFP nutrition sync completed for %s", target_date)
+            except Exception:
+                logger.exception("MFP nutrition sync failed")
+
+        # --- Nightscout glucose (independent of Garmin) ---
+        if nightscout:
+            try:
+                sync = SyncService(db=db, garmin=None, nightscout=nightscout)
+                sync.sync_glucose(target_date)
+                logger.info("Nightscout glucose sync completed for %s", target_date)
+            except Exception:
+                logger.exception("Nightscout glucose sync failed")
+
+        # --- Garmin sync ---
+        try:
+            garmin = _get_garmin_client()
             sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
             try:
                 sync.sync_all(target_date)
