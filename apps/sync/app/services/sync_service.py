@@ -24,6 +24,27 @@ from app.services.garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
 
+# Alcohol keywords — determined by one-time analysis of MFP food entry names.
+# Each keyword is matched case-insensitively against the food entry name.
+ALCOHOL_KEYWORDS = [
+    "beer", "wine", "vodka", "whiskey", "gin", "rum", "tequila",
+    "cocktail", "margarita", "cerveza", "seltzer", "cider", "sangria",
+    "bourbon", "scotch", "champagne", "prosecco", "mezcal", "sake",
+    "malbec", "cabernet", "merlot", "ipa", "lager", "ale", "stout",
+    "corona", "heineken", "aperol", "spritz", "negroni", "daiquiri",
+    "mojito", "piña colada", "michelada", "paloma",
+]
+
+
+def _count_alcohol_drinks(entries: list[dict]) -> int:
+    """Count food entries that match alcohol keywords."""
+    count = 0
+    for entry in entries:
+        name = entry.get("name", "").lower()
+        if any(kw in name for kw in ALCOHOL_KEYWORDS):
+            count += 1
+    return count
+
 
 class SyncService:
     def __init__(
@@ -223,6 +244,8 @@ class SyncService:
         data = self.mfp.get_day(target_date)
         if not data:
             return None
+        entries = data.get("entries")
+        alcohol_drinks = _count_alcohol_drinks(entries) if entries is not None else None
         values = {
             "date": target_date,
             "calories": data.get("calories"),
@@ -233,6 +256,7 @@ class SyncService:
             "sodium_mg": data.get("sodium_mg"),
             "calories_goal": data.get("calories_goal"),
             "protein_goal_g": data.get("protein_goal_g"),
+            "alcohol_drinks": alcohol_drinks,
         }
         return self._upsert(NutritionDaily, "date", target_date, values)
 
