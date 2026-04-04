@@ -70,6 +70,16 @@ class MFPClient:
 
             totals = day.totals
             goals = day.goals or {}
+
+            # Extract individual food entries from meals
+            entries = []
+            for meal in day.meals:
+                for entry in meal.entries:
+                    entries.append({
+                        "name": entry.name,
+                        "meal": meal.name,
+                    })
+
             return {
                 "calories": totals.get("calories"),
                 "protein_g": totals.get("protein"),
@@ -79,6 +89,7 @@ class MFPClient:
                 "sodium_mg": totals.get("sodium"),
                 "calories_goal": goals.get("calories"),
                 "protein_goal_g": goals.get("protein"),
+                "entries": entries,
             }
         except Exception as e:
             logger.warning(f"MFP get_day failed for {target_date}: {e}")
