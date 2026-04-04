@@ -215,7 +215,7 @@ def _build_p1_aerobic(
 
     return PillarData(
         id="aerobic",
-        name="P1 Motor Aeróbico",
+        name="Aeróbico",
         color="#00d68f",
         collapsed_kpis=[
             PillarKPI(label="VO2max", value=_fmt(vo2, 1), unit="ml/kg"),
@@ -300,7 +300,7 @@ def _build_p2_strength(db: Session, target_date: date) -> PillarData:
 
     return PillarData(
         id="strength",
-        name="P2 Durabilidad Muscular",
+        name="Muscular",
         color="#00c4b4",
         collapsed_kpis=[
             PillarKPI(label="Pull-ups", value=_fmt(pullups), unit="reps"),
@@ -356,7 +356,7 @@ def _build_p3_fueling(
 
     return PillarData(
         id="fueling",
-        name="P3 Fueling y Metabolismo",
+        name="Nutrición",
         color="#b388ff",
         collapsed_kpis=[
             PillarKPI(label="Weight", value=_fmt(weight, 1), unit="kg"),
@@ -409,7 +409,7 @@ def _build_p4_recovery(
 
     return PillarData(
         id="recovery",
-        name="P4 Recuperación",
+        name="Recuperación",
         color="#f5c542",
         collapsed_kpis=[
             PillarKPI(label="HRV", value=_fmt(hrv), unit="ms"),
@@ -449,7 +449,7 @@ def _build_p4_recovery(
 def _build_p5_clinical(db: Session) -> PillarData:
     return PillarData(
         id="clinical",
-        name="P5 Salud Clínica",
+        name="Clínica",
         color="#ff4d4d",
         collapsed_kpis=[
             PillarKPI(label="Screenings", value="✓", unit=""),
