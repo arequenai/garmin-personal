@@ -69,3 +69,33 @@ def run_sync_for_date(target_date: date) -> None:
                 logger.exception("TrainingPeaks sync failed")
     finally:
         db.close()
+
+
+def run_frequent_sync() -> None:
+    """Lightweight sync for intraday data: nutrition (MFP) + stress readings."""
+    db = SessionLocal()
+    try:
+        garmin = GarminClient(email=settings.garmin_email, password=settings.garmin_password)
+        garmin.login()
+
+        user = db.query(User).first()
+        mfp_cookies = (
+            user.mfp_cookies if user and user.mfp_cookies else None
+        ) or settings.mfp_cookies
+
+        mfp = None
+        if mfp_cookies:
+            from app.services.mfp_client import MFPClient
+
+            mfp = MFPClient(cookies_json=mfp_cookies)
+            mfp.login()
+
+        sync = SyncService(db=db, garmin=garmin, mfp=mfp)
+        today = date.today()
+        sync.sync_nutrition(today)
+        sync.sync_stress_readings(today)
+        logger.info(f"Frequent sync completed for {today}")
+    except Exception:
+        logger.exception("Frequent sync failed")
+    finally:
+        db.close()
