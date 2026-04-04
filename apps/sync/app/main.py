@@ -8,6 +8,7 @@ from app.config import settings as app_settings
 from app.routers import (
     activities,
     aerobico,
+    body_composition,
     daily,
     dashboard,
     fitbit,
@@ -56,6 +57,7 @@ app.include_router(tp.router)
 app.include_router(plan.router)
 app.include_router(aerobico.router)
 app.include_router(fitbit.router)
+app.include_router(body_composition.router)
 
 
 @app.get("/api/health")
