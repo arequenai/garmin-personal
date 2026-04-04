@@ -1,5 +1,5 @@
-from unittest.mock import patch, MagicMock
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 from app.services.sync_orchestrator import run_frequent_sync
 
@@ -11,7 +11,7 @@ def test_run_frequent_sync_calls_nutrition_and_stress():
 
     with (
         patch("app.services.sync_orchestrator.SessionLocal", return_value=mock_db),
-        patch("app.services.sync_orchestrator.GarminClient") as mock_garmin_cls,
+        patch("app.services.sync_orchestrator.GarminClient"),
         patch("app.services.sync_orchestrator.SyncService", return_value=mock_sync),
         patch("app.services.sync_orchestrator.settings") as mock_settings,
     ):

@@ -15,7 +15,6 @@ from app.models import (
 )
 from app.models.exercise_set import ExerciseSet
 from app.models.stress_reading import StressReading
-from app.models.training_readiness import TrainingReadiness
 from app.models.user_goal import UserGoal
 from app.schemas.plan import (
     PillarData,
@@ -184,7 +183,6 @@ def _build_p1_aerobic(
     vo2 = perf.vo2max if perf else None
     ctl = perf.ctl if perf else None
     atl = perf.atl if perf else None
-    tsb = perf.tsb if perf else None
 
     # Weekly running stats
     start = target_date - timedelta(days=6)

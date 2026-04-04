@@ -9,15 +9,12 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 from app.main import app
 from app.models import (
-    Activity,
-    BodyComposition,
     DailySummary,
     NutritionDaily,
     PerformanceMetric,
     SleepSession,
 )
 from app.models.stress_reading import StressReading
-from app.models.training_readiness import TrainingReadiness
 from app.models.user_goal import UserGoal
 
 engine = create_engine(
@@ -54,16 +51,18 @@ def client(db):
 
 def seed_data(db, target=date(2026, 4, 4)):
     db.add(DailySummary(date=target, resting_hr=48, stress_avg=28, body_battery_high=72))
-    db.add(SleepSession(date=target, total_sleep_min=452, deep_min=81, avg_hrv=52.0, sleep_score=85))
+    db.add(SleepSession(
+        date=target, total_sleep_min=452, deep_min=81, avg_hrv=52.0, sleep_score=85,
+    ))
     db.add(NutritionDaily(date=target, calories=1420, protein_g=82.0, carbs_g=180.0, fat_g=55.0))
     db.add(PerformanceMetric(
         date=target, tss=65.0, atl=78.0, ctl=62.0, tsb=-16.0,
         vo2max=48.3, recovery_score=68.0,
     ))
-    db.add(UserGoal(metric_key="calories", target_value=2200, target_unit="kcal", category="nutrition"))
+    db.add(UserGoal(
+        metric_key="calories", target_value=2200, target_unit="kcal", category="nutrition",
+    ))
     db.add(UserGoal(metric_key="protein", target_value=125, target_unit="g", category="nutrition"))
-    # Stress readings for last hour test
-    now = datetime(2026, 4, 4, 14, 0, 0)
     db.add(StressReading(date=target, timestamp=datetime(2026, 4, 4, 13, 30), value=30))
     db.add(StressReading(date=target, timestamp=datetime(2026, 4, 4, 13, 45), value=40))
     db.add(StressReading(date=target, timestamp=datetime(2026, 4, 4, 13, 55), value=38))

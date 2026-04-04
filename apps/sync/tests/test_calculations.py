@@ -1,8 +1,11 @@
+from datetime import datetime
+
 import pytest
 
 from app.services.calculations import (
     calculate_ewma,
     calculate_recovery_score,
+    calculate_stress_last_hour,
     calculate_tsb,
     calculate_tss_hr,
     calculate_tss_power,
@@ -136,10 +139,6 @@ def test_recovery_score_clamped():
 
 
 # --- Stress Last Hour Tests ---
-
-from datetime import datetime
-
-from app.services.calculations import calculate_stress_last_hour
 
 
 def test_stress_last_hour_basic():

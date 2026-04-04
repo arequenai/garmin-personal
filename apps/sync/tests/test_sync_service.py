@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import DailySummary
+from app.models.stress_reading import StressReading
 from app.services.sync_service import SyncService
 
 
@@ -148,9 +149,6 @@ def test_sync_activities_filters_by_date(db_session):
     # Sync for a different date — should get no results because activity is on 2026-03-06
     results = service.sync_activities(date(2026, 3, 7))
     assert len(results) == 0
-
-
-from app.models.stress_reading import StressReading
 
 
 def test_sync_stress_readings(db_session):
