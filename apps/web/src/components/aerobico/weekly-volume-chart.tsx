@@ -5,6 +5,8 @@ import {
   createChart,
   type IChartApi,
   ColorType,
+  HistogramSeries as HistogramSeriesDef,
+  LineSeries as LineSeriesDef,
 } from "lightweight-charts";
 import type { WeeklyVolume } from "@/lib/types";
 
@@ -37,7 +39,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
     });
     chartRef.current = chart;
 
-    const kmSeries = chart.addHistogramSeries({
+    const kmSeries = chart.addSeries(HistogramSeriesDef, {
       color: "#4da6ff",
       priceScaleId: "left",
       title: "km",
@@ -46,7 +48,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
       data.map((d) => ({ time: d.week_start, value: d.km })),
     );
 
-    const elevSeries = chart.addLineSeries({
+    const elevSeries = chart.addSeries(LineSeriesDef, {
       color: "#f97316",
       lineWidth: 2,
       priceScaleId: "right",

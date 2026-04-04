@@ -5,6 +5,8 @@ import {
   createChart,
   type IChartApi,
   ColorType,
+  LineSeries as LineSeriesDef,
+  BaselineSeries as BaselineSeriesDef,
 } from "lightweight-charts";
 import type { PMCDataPoint } from "@/lib/types";
 
@@ -36,7 +38,7 @@ export function PMCChart({ data }: PMCChartProps) {
     });
     chartRef.current = chart;
 
-    const ctlSeries = chart.addLineSeries({
+    const ctlSeries = chart.addSeries(LineSeriesDef, {
       color: "#4da6ff",
       lineWidth: 2,
       title: "CTL",
@@ -45,7 +47,7 @@ export function PMCChart({ data }: PMCChartProps) {
       data.filter((d) => d.ctl != null).map((d) => ({ time: d.date, value: d.ctl! })),
     );
 
-    const atlSeries = chart.addLineSeries({
+    const atlSeries = chart.addSeries(LineSeriesDef, {
       color: "#f97316",
       lineWidth: 2,
       title: "ATL",
@@ -54,7 +56,7 @@ export function PMCChart({ data }: PMCChartProps) {
       data.filter((d) => d.atl != null).map((d) => ({ time: d.date, value: d.atl! })),
     );
 
-    const tsbSeries = chart.addBaselineSeries({
+    const tsbSeries = chart.addSeries(BaselineSeriesDef, {
       baseValue: { type: "price", price: 0 },
       topLineColor: "#00d68f",
       topFillColor1: "rgba(0, 214, 143, 0.2)",
