@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import DailySummary, NutritionDaily, PerformanceMetric, SleepSession
 from app.models.body_composition import BodyComposition
+from app.models.tp_fitness_data import TPFitnessData
 from app.models.training_readiness import TrainingReadiness
 
 logger = logging.getLogger(__name__)
@@ -70,12 +71,19 @@ class GoogleSheetsExporter:
         daily = self.db.query(DailySummary).filter_by(date=target_date).first()
         sleep = self.db.query(SleepSession).filter_by(date=target_date).first()
         perf = self.db.query(PerformanceMetric).filter_by(date=target_date).first()
+        tp = self.db.query(TPFitnessData).filter_by(date=target_date).first()
         body = self.db.query(BodyComposition).filter_by(date=target_date).first()
         tr = self.db.query(TrainingReadiness).filter_by(date=target_date).first()
         nutr = self.db.query(NutritionDaily).filter_by(date=target_date).first()
 
         distance_km = round(daily.distance_m / 1000, 1) if daily and daily.distance_m else ""
         sleep_hrs = round(sleep.total_sleep_min / 60, 1) if sleep and sleep.total_sleep_min else ""
+
+        # Prefer PerformanceMetric, fall back to TP fitness data
+        tss = (perf.tss if perf and perf.tss else None) or (tp.tss_day if tp else None)
+        atl = (perf.atl if perf and perf.atl else None) or (tp.atl if tp else None)
+        ctl = (perf.ctl if perf and perf.ctl else None) or (tp.ctl if tp else None)
+        tsb = (perf.tsb if perf and perf.tsb else None) or (tp.tsb if tp else None)
 
         return [
             target_date.isoformat(),
@@ -90,10 +98,10 @@ class GoogleSheetsExporter:
             sleep_hrs,
             _val(sleep.avg_hrv if sleep else None, decimals=1),
             _val(perf.recovery_score if perf else None, as_int=True),
-            _val(perf.tss if perf else None, decimals=1),
-            _val(perf.atl if perf else None, decimals=1),
-            _val(perf.ctl if perf else None, decimals=1),
-            _val(perf.tsb if perf else None, decimals=1),
+            _val(tss, decimals=1),
+            _val(atl, decimals=1),
+            _val(ctl, decimals=1),
+            _val(tsb, decimals=1),
             _val(perf.vo2max if perf else None, decimals=1),
             _val(body.weight_kg if body else None, decimals=1),
             _val(body.body_fat_pct if body else None, decimals=1),

@@ -10,8 +10,6 @@ from app.models.tp_completed_workout import TPCompletedWorkout
 from app.models.tp_fitness_data import TPFitnessData
 from app.models.tp_planned_workout import TPPlannedWorkout
 from app.schemas.aerobico import (
-    CalendarCompletedWorkout,
-    CalendarPlannedWorkout,
     CalendarResponse,
     HRZonesResponse,
     PMCDataPoint,

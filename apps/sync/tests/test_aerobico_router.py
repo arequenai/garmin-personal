@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,10 +8,10 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.tp_fitness_data import TPFitnessData
-from app.models.tp_completed_workout import TPCompletedWorkout
-from app.models.tp_planned_workout import TPPlannedWorkout
 from app.models.activity import Activity
+from app.models.tp_completed_workout import TPCompletedWorkout
+from app.models.tp_fitness_data import TPFitnessData
+from app.models.tp_planned_workout import TPPlannedWorkout
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -102,9 +102,18 @@ def test_calendar_empty(client, db):
 
 
 def test_volume_aggregates_by_week(client, db):
-    db.add(Activity(garmin_id="r1", date=date(2026, 3, 30), type="running", distance_m=10000, elevation_gain=100))
-    db.add(Activity(garmin_id="r2", date=date(2026, 4, 1), type="trail_running", distance_m=15000, elevation_gain=250))
-    db.add(Activity(garmin_id="s1", date=date(2026, 4, 1), type="strength_training", distance_m=0, elevation_gain=0))
+    db.add(Activity(
+        garmin_id="r1", date=date(2026, 3, 30),
+        type="running", distance_m=10000, elevation_gain=100,
+    ))
+    db.add(Activity(
+        garmin_id="r2", date=date(2026, 4, 1),
+        type="trail_running", distance_m=15000, elevation_gain=250,
+    ))
+    db.add(Activity(
+        garmin_id="s1", date=date(2026, 4, 1),
+        type="strength_training", distance_m=0, elevation_gain=0,
+    ))
     db.commit()
     resp = client.get("/api/aerobico/volume?from_date=2026-03-30&to_date=2026-04-05")
     assert resp.status_code == 200
