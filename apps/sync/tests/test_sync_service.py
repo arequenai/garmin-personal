@@ -148,3 +148,27 @@ def test_sync_activities_filters_by_date(db_session):
     # Sync for a different date — should get no results because activity is on 2026-03-06
     results = service.sync_activities(date(2026, 3, 7))
     assert len(results) == 0
+
+
+from app.models.stress_reading import StressReading
+
+
+def test_sync_stress_readings(db_session):
+    mock_garmin = make_mock_garmin()
+    mock_garmin.get_stress_data.return_value = {
+        "stressValuesArray": [
+            [1712234400000, 30],  # 10:00
+            [1712234580000, -1],  # 10:03 (activity)
+            [1712234760000, 45],  # 10:06
+        ],
+        "overallStressLevel": 35,
+        "maxStressLevel": 45,
+    }
+    sync = SyncService(db=db_session, garmin=mock_garmin)
+    sync.sync_stress_readings(date(2026, 4, 4))
+
+    readings = db_session.query(StressReading).all()
+    assert len(readings) == 3
+    assert readings[0].value == 30
+    assert readings[1].value == -1
+    assert readings[2].value == 45

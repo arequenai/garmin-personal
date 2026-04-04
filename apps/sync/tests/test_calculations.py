@@ -133,3 +133,45 @@ def test_recovery_score_clamped():
     assert 0 <= score <= 100
     score2 = calculate_recovery_score(tsb=-100.0, sleep_score=0, hrv=0.0)
     assert 0 <= score2 <= 100
+
+
+# --- Stress Last Hour Tests ---
+
+from datetime import datetime
+
+from app.services.calculations import calculate_stress_last_hour
+
+
+def test_stress_last_hour_basic():
+    """Average stress from readings in the last 60 minutes."""
+    now = datetime(2026, 4, 4, 14, 0, 0)
+    readings = [
+        # 50 min ago — included
+        (datetime(2026, 4, 4, 13, 10, 0), 30),
+        # 30 min ago — included
+        (datetime(2026, 4, 4, 13, 30, 0), 40),
+        # 10 min ago — included
+        (datetime(2026, 4, 4, 13, 50, 0), 50),
+        # 70 min ago — excluded
+        (datetime(2026, 4, 4, 12, 50, 0), 90),
+    ]
+    result = calculate_stress_last_hour(readings, now)
+    assert result == 40  # (30+40+50) / 3
+
+
+def test_stress_last_hour_no_readings():
+    now = datetime(2026, 4, 4, 14, 0, 0)
+    result = calculate_stress_last_hour([], now)
+    assert result is None
+
+
+def test_stress_last_hour_skips_negative():
+    """Negative values (-1=activity, -2=unusable) are excluded."""
+    now = datetime(2026, 4, 4, 14, 0, 0)
+    readings = [
+        (datetime(2026, 4, 4, 13, 30, 0), 40),
+        (datetime(2026, 4, 4, 13, 40, 0), -1),
+        (datetime(2026, 4, 4, 13, 50, 0), 60),
+    ]
+    result = calculate_stress_last_hour(readings, now)
+    assert result == 50  # (40+60) / 2

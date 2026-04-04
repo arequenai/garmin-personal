@@ -5,6 +5,7 @@ and PerformanceUpdater (daily ATL/CTL/TSB).
 """
 
 import math
+from datetime import datetime, timedelta
 
 import numpy as np
 
@@ -132,6 +133,21 @@ def process_stress_data(stress_values: list[list]) -> dict:
         "stress_min": int(np.nanmin(valid)) if len(valid) > 0 else None,
         "valid_readings": int(len(valid)),
     }
+
+
+def calculate_stress_last_hour(
+    readings: list[tuple[datetime, int]],
+    now: datetime,
+) -> int | None:
+    """Average stress from readings within the last 60 minutes.
+
+    Skips negative values (-1=activity, -2=unusable).
+    """
+    cutoff = now - timedelta(hours=1)
+    valid = [val for ts, val in readings if ts >= cutoff and val > 0]
+    if not valid:
+        return None
+    return round(sum(valid) / len(valid))
 
 
 def calculate_recovery_score(

@@ -14,6 +14,7 @@ from app.models import (
     TrainingReadiness,
 )
 from app.models.glucose_daily import GlucoseDaily
+from app.models.stress_reading import StressReading
 from app.services.calculations import (
     calculate_tss_hr,
     calculate_tss_strength,
@@ -425,6 +426,33 @@ class SyncService:
             "fasting_glucose": data.get("fasting_glucose"),
         }
         return self._upsert(GlucoseDaily, "date", target_date, values)
+
+    def sync_stress_readings(self, target_date: date) -> int:
+        """Sync raw stress data points into stress_readings table.
+
+        Returns number of readings stored.
+        """
+        date_str = target_date.isoformat()
+        stress = self.garmin.get_stress_data(date_str)
+        values_array = stress.get("stressValuesArray", [])
+        if not values_array:
+            return 0
+
+        # Delete existing readings for this date (idempotent re-sync)
+        self.db.query(StressReading).filter(StressReading.date == target_date).delete()
+
+        count = 0
+        for ts_ms, value in values_array:
+            reading = StressReading(
+                date=target_date,
+                timestamp=datetime.fromtimestamp(ts_ms / 1000),
+                value=value,
+            )
+            self.db.add(reading)
+            count += 1
+
+        self.db.commit()
+        return count
 
     def sync_all(self, target_date: date):
         self.sync_daily_summary(target_date)
