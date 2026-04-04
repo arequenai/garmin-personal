@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Target } from "lucide-react";
+import { Activity, Target, UtensilsCrossed } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: Target, label: "Plan" },
   { href: "/aerobico", icon: Activity, label: "Aeróbico" },
+  { href: "/nutricion", icon: UtensilsCrossed, label: "Nutrición" },
 ] as const;
 
 export function Sidebar() {
