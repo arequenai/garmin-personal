@@ -9,6 +9,7 @@ import { CaloriesChart } from "./calories-chart";
 import { MacroStackedChart } from "./macro-stacked-chart";
 import { AlcoholStrip } from "./alcohol-strip";
 import { WeightBFChart } from "./weight-bf-chart";
+import { SummarySidebar } from "./summary-sidebar";
 
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
@@ -155,11 +156,12 @@ export function NutricionPageClient() {
             )}
           </div>
 
-          {/* Right: summary sidebar — Task 11 */}
+          {/* Right: summary sidebar */}
           <div className="flex flex-col gap-4 md:w-1/4">
-            <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-              <p className="text-xs text-whoop-text-muted">Summary sidebar placeholder</p>
-            </div>
+            <SummarySidebar
+              nutrition={nutrition.data ?? []}
+              bodyComp={bodyComp.data ?? []}
+            />
           </div>
         </div>
       </div>
