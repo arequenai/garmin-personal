@@ -5,6 +5,8 @@ import type { NutritionDay } from "@/lib/types";
 
 interface AlcoholStripProps {
   data: NutritionDay[];
+  from: string;
+  to: string;
 }
 
 function getISOWeek(dateStr: string): string {
@@ -17,13 +19,36 @@ function getISOWeek(dateStr: string): string {
   return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
-export function AlcoholStrip({ data }: AlcoholStripProps) {
-  const sorted = useMemo(
-    () => [...data].sort((a, b) => a.date.localeCompare(b.date)),
-    [data],
-  );
+function generateDateRange(from: string, to: string): string[] {
+  const dates: string[] = [];
+  const d = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  while (d <= end) {
+    dates.push(d.toISOString().split("T")[0]);
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
 
-  if (sorted.length === 0) {
+interface DayAlcohol {
+  date: string;
+  drinks: number | null; // null = no data for this day
+}
+
+export function AlcoholStrip({ data, from, to }: AlcoholStripProps) {
+  const days = useMemo(() => {
+    const dataMap = new Map<string, NutritionDay>();
+    for (const d of data) {
+      dataMap.set(d.date, d);
+    }
+
+    return generateDateRange(from, to).map((date): DayAlcohol => {
+      const d = dataMap.get(date);
+      return { date, drinks: d ? (d.alcohol_drinks ?? 0) : null };
+    });
+  }, [data, from, to]);
+
+  if (days.length === 0) {
     return (
       <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-whoop-text">Alcohol</h2>
@@ -32,20 +57,19 @@ export function AlcoholStrip({ data }: AlcoholStripProps) {
     );
   }
 
-  const dotSize = Math.max(6, Math.min(12, Math.floor(600 / sorted.length) - 2));
   const gap = 2;
+  const dotSize = Math.max(6, Math.min(12, Math.floor(600 / days.length) - gap));
   const svgHeight = 24;
   const cy = svgHeight / 2;
+  const svgWidth = days.length * (dotSize + gap);
 
   // Detect week boundaries
   const weekBoundaries: number[] = [];
-  for (let i = 1; i < sorted.length; i++) {
-    if (getISOWeek(sorted[i].date) !== getISOWeek(sorted[i - 1].date)) {
+  for (let i = 1; i < days.length; i++) {
+    if (getISOWeek(days[i].date) !== getISOWeek(days[i - 1].date)) {
       weekBoundaries.push(i);
     }
   }
-
-  const svgWidth = sorted.length * (dotSize + gap);
 
   return (
     <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
@@ -53,16 +77,18 @@ export function AlcoholStrip({ data }: AlcoholStripProps) {
         Alcohol
         <span className="ml-2 text-xs font-normal text-whoop-text-muted">
           <span style={{ color: "#f97316" }}>●</span> drink day{" · "}
-          <span style={{ color: "#333" }}>●</span> none{" · "}
+          <span style={{ color: "#555" }}>●</span> none{" · "}
+          <span style={{ color: "#333" }}>●</span> no data{" · "}
           <span style={{ color: "#444" }}>|</span> week
         </span>
       </h2>
 
       <div className="overflow-x-auto">
         <svg
-          width={svgWidth}
+          width="100%"
           height={svgHeight}
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          preserveAspectRatio="none"
           className="block"
         >
           {weekBoundaries.map((idx) => {
@@ -80,19 +106,20 @@ export function AlcoholStrip({ data }: AlcoholStripProps) {
             );
           })}
 
-          {sorted.map((d, i) => {
+          {days.map((d, i) => {
             const cx = i * (dotSize + gap) + dotSize / 2;
-            const hasDrinks = (d.alcohol_drinks ?? 0) > 0;
+            const fill =
+              d.drinks === null ? "#333" : d.drinks > 0 ? "#f97316" : "#555";
             return (
               <circle
                 key={d.date}
                 cx={cx}
                 cy={cy}
                 r={dotSize / 2}
-                fill={hasDrinks ? "#f97316" : "#333"}
+                fill={fill}
               >
                 <title>
-                  {d.date}: {d.alcohol_drinks ?? 0} drink{(d.alcohol_drinks ?? 0) !== 1 ? "s" : ""}
+                  {d.date}: {d.drinks === null ? "no data" : `${d.drinks} drink${d.drinks !== 1 ? "s" : ""}`}
                 </title>
               </circle>
             );

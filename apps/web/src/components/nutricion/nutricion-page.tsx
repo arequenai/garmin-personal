@@ -136,11 +136,11 @@ export function NutricionPageClient() {
             ) : (
               <>
                 {/* Calories chart — Task 7 */}
-                <CaloriesChart data={nutrition.data!} />
+                <CaloriesChart data={nutrition.data!} from={from} to={to} />
                 {/* Macro chart — Task 8 */}
-                <MacroStackedChart data={nutrition.data!} />
+                <MacroStackedChart data={nutrition.data!} from={from} to={to} />
                 {/* Alcohol strip — Task 9 */}
-                <AlcoholStrip data={nutrition.data!} />
+                <AlcoholStrip data={nutrition.data!} from={from} to={to} />
               </>
             )}
 
@@ -152,7 +152,7 @@ export function NutricionPageClient() {
                 <ChartError onRetry={() => setFrom((f) => f)} />
               </div>
             ) : (
-              <WeightBFChart data={bodyComp.data!} />
+              <WeightBFChart data={bodyComp.data!} from={from} to={to} />
             )}
           </div>
 

@@ -12,6 +12,8 @@ import type { NutritionDay } from "@/lib/types";
 
 interface CaloriesChartProps {
   data: NutritionDay[];
+  from: string;
+  to: string;
 }
 
 function compute7dMA(data: NutritionDay[]): { time: string; value: number }[] {
@@ -34,7 +36,7 @@ function compute7dMA(data: NutritionDay[]): { time: string; value: number }[] {
   return result;
 }
 
-export function CaloriesChart({ data }: CaloriesChartProps) {
+export function CaloriesChart({ data, from, to }: CaloriesChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -106,7 +108,20 @@ export function CaloriesChart({ data }: CaloriesChartProps) {
     });
     maSeries.setData(compute7dMA(sorted));
 
-    chart.timeScale().fitContent();
+    // Anchor the time axis to the full date range even if data is sparse
+    const anchorSeries = chart.addSeries(LineSeriesDef, {
+      color: "transparent",
+      lineWidth: 1,
+      crosshairMarkerVisible: false,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      priceScaleId: "",
+    });
+    anchorSeries.setData([
+      { time: from, value: 0 },
+      { time: to, value: 0 },
+    ]);
+    chart.timeScale().setVisibleRange({ from, to });
 
     const handleResize = () => {
       if (containerRef.current) {
@@ -119,7 +134,7 @@ export function CaloriesChart({ data }: CaloriesChartProps) {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data]);
+  }, [data, from, to]);
 
   return (
     <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">

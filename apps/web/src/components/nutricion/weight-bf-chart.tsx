@@ -11,9 +11,11 @@ import type { BodyCompositionDay } from "@/lib/types";
 
 interface WeightBFChartProps {
   data: BodyCompositionDay[];
+  from: string;
+  to: string;
 }
 
-export function WeightBFChart({ data }: WeightBFChartProps) {
+export function WeightBFChart({ data, from, to }: WeightBFChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -62,7 +64,20 @@ export function WeightBFChart({ data }: WeightBFChartProps) {
         .map((d) => ({ time: d.date, value: d.body_fat_pct! })),
     );
 
-    chart.timeScale().fitContent();
+    // Anchor the time axis to the full date range even if data is sparse
+    const anchorSeries = chart.addSeries(LineSeriesDef, {
+      color: "transparent",
+      lineWidth: 1,
+      crosshairMarkerVisible: false,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      priceScaleId: "",
+    });
+    anchorSeries.setData([
+      { time: from, value: 0 },
+      { time: to, value: 0 },
+    ]);
+    chart.timeScale().setVisibleRange({ from, to });
 
     const handleResize = () => {
       if (containerRef.current) {
@@ -75,7 +90,7 @@ export function WeightBFChart({ data }: WeightBFChartProps) {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data]);
+  }, [data, from, to]);
 
   return (
     <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
