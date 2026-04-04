@@ -161,6 +161,7 @@ def run_sync_for_date(target_date: date) -> None:
                 logger.exception("Fitbit body composition sync failed")
 
         # --- Garmin sync ---
+        garmin = None
         try:
             garmin = _get_garmin_client()
             sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
@@ -171,10 +172,28 @@ def run_sync_for_date(target_date: date) -> None:
                 garmin = _get_garmin_client(force_new=True)
                 sync.garmin = garmin
                 sync.sync_all(target_date)
+        except Exception:
+            logger.exception("Garmin sync failed")
+
+        # --- TrainingPeaks sync (independent of Garmin) ---
+        if settings.tp_enabled and settings.tp_auth_cookie:
+            try:
+                from app.services.tp_sync_service import TPSyncService
+                from app.services.trainingpeaks_client import TrainingPeaksClient
+
+                tp_client = TrainingPeaksClient(auth_cookie=settings.tp_auth_cookie)
+                tp_client.login()
+                tp_sync = TPSyncService(db=db, tp_client=tp_client)
+                tp_sync.sync_all(target_date)
+            except Exception:
+                logger.exception("TrainingPeaks sync failed")
+
+        # --- Performance updater (uses TP data + optionally Garmin) ---
+        try:
             updater = PerformanceUpdater(db=db, garmin=garmin)
             updater.update(target_date)
         except Exception:
-            logger.exception("Garmin sync failed")
+            logger.exception("Performance updater failed")
 
         # --- Google Sheets export (reads from DB, independent of Garmin) ---
         if settings.google_service_account_json and settings.google_spreadsheet_id:
@@ -189,18 +208,6 @@ def run_sync_for_date(target_date: date) -> None:
             except Exception:
                 logger.exception("Google Sheets export failed")
 
-        # --- TrainingPeaks sync (independent of Garmin) ---
-        if settings.tp_enabled and settings.tp_auth_cookie:
-            try:
-                from app.services.tp_sync_service import TPSyncService
-                from app.services.trainingpeaks_client import TrainingPeaksClient
-
-                tp_client = TrainingPeaksClient(auth_cookie=settings.tp_auth_cookie)
-                tp_client.login()
-                tp_sync = TPSyncService(db=db, tp_client=tp_client)
-                tp_sync.sync_all(target_date)
-            except Exception:
-                logger.exception("TrainingPeaks sync failed")
     finally:
         db.close()
 
