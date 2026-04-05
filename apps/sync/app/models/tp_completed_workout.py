@@ -38,3 +38,4 @@ class TPCompletedWorkout(Base):
     power_zone6_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
     power_zone7_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
     laps_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    workout_details_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
