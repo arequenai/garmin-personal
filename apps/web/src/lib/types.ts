@@ -34,10 +34,17 @@ export interface PillarData {
   drivers: PillarDriver[];
 }
 
+export interface SyncSourceStatus {
+  source: string;
+  last_date: string | null;
+  ok: boolean;
+}
+
 export interface PlanDailyData {
   date: string;
   strip: StripMetric[];
   pillars: PillarData[];
+  sync_status: SyncSourceStatus[];
 }
 
 export function emptyPlanDailyData(): PlanDailyData {
@@ -45,6 +52,7 @@ export function emptyPlanDailyData(): PlanDailyData {
     date: new Date().toISOString().split("T")[0],
     strip: [],
     pillars: [],
+    sync_status: [],
   };
 }
 
@@ -89,13 +97,16 @@ export interface WeeklyVolume {
   elevation_m: number;
 }
 
-export interface HRZonesData {
+export interface WeeklyHRZones {
+  week_start: string;
   zone1_sec: number;
   zone2_sec: number;
   zone3_sec: number;
   zone4_sec: number;
   zone5_sec: number;
 }
+
+export type HRZonesData = WeeklyHRZones[];
 
 // ── Nutrición tab types ──
 
@@ -111,6 +122,7 @@ export interface NutritionDay {
   calories_goal: number | null;
   protein_goal_g: number | null;
   alcohol_drinks: number | null;
+  calories_target_adaptive: number | null;
 }
 
 export interface BodyCompositionDay {

@@ -55,6 +55,8 @@ export function CaloriesChart({ data, from, to }: CaloriesChartProps) {
         horzLines: { color: "#2a2a2a" },
       },
       crosshair: { mode: 0 },
+      handleScroll: { mouseWheel: false },
+      handleScale: { mouseWheel: false },
       rightPriceScale: { borderColor: "#2a2a2a" },
       timeScale: { borderColor: "#2a2a2a" },
     });
@@ -62,41 +64,38 @@ export function CaloriesChart({ data, from, to }: CaloriesChartProps) {
 
     const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
-    // Use the most recent non-null goal value
-    const goals = sorted.map((d) => d.calories_goal).filter((g): g is number => g != null);
-    const goalValue = goals.length > 0 ? goals[goals.length - 1] : null;
-
-    // Daily calorie bars — green if ≤ goal, red if > goal
+    // Daily calorie bars — green if ≤ adaptive target, red if > adaptive target
     const barSeries = chart.addSeries(HistogramSeriesDef, {
       title: "Calories",
     });
     barSeries.setData(
       sorted
         .filter((d) => d.calories != null)
-        .map((d) => ({
-          time: d.date,
-          value: d.calories!,
-          color:
-            goalValue != null && d.calories! > goalValue
-              ? "#ef4444"
-              : "#00d68f",
-        })),
+        .map((d) => {
+          const target = d.calories_target_adaptive ?? d.calories_goal;
+          return {
+            time: d.date,
+            value: d.calories!,
+            color:
+              target != null && d.calories! > target
+                ? "#ef4444"
+                : "#00d68f",
+          };
+        }),
     );
 
-    // Goal line
-    if (goalValue != null) {
-      const goalSeries = chart.addSeries(LineSeriesDef, {
+    // Adaptive target line (per-day, varies)
+    const targetData = sorted
+      .filter((d) => d.calories_target_adaptive != null)
+      .map((d) => ({ time: d.date, value: d.calories_target_adaptive! }));
+    if (targetData.length > 0) {
+      const targetSeries = chart.addSeries(LineSeriesDef, {
         color: "#f97316",
         lineWidth: 1,
-        lineStyle: 2,
-        title: "Goal",
+        title: "Target",
         crosshairMarkerVisible: false,
       });
-      goalSeries.setData(
-        sorted
-          .filter((d) => d.calories != null)
-          .map((d) => ({ time: d.date, value: goalValue })),
-      );
+      targetSeries.setData(targetData);
     }
 
     // 7-day moving average
@@ -141,7 +140,7 @@ export function CaloriesChart({ data, from, to }: CaloriesChartProps) {
       <h2 className="mb-3 text-sm font-semibold text-whoop-text">
         Calories vs Goal
         <span className="ml-2 text-xs font-normal text-whoop-text-muted">
-          bars · goal (orange) · 7d avg (blue)
+          bars · target (orange) · 7d avg (blue)
         </span>
       </h2>
       {data.length === 0 ? (
