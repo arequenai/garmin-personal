@@ -50,6 +50,7 @@ class TPCompletedWorkoutResponse(BaseModel):
     max_power: float | None
     normalized_power: float | None
     calories: int | None
+    elevation_gain_m: float | None
     hr_zone1_sec: int | None
     hr_zone2_sec: int | None
     hr_zone3_sec: int | None

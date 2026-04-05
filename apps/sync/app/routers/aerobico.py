@@ -110,6 +110,7 @@ def get_volume(
         if week_start not in weeks:
             weeks[week_start] = {"km": 0.0, "elevation_m": 0.0}
         weeks[week_start]["km"] += km
+        weeks[week_start]["elevation_m"] += float(w.elevation_gain_m or 0)
 
     result = [
         WeeklyVolume(

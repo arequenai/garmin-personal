@@ -24,6 +24,7 @@ class TPCompletedWorkout(Base):
     max_power: Mapped[float | None] = mapped_column(Float, nullable=True)
     normalized_power: Mapped[float | None] = mapped_column(Float, nullable=True)
     calories: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    elevation_gain_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     hr_zone1_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hr_zone2_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hr_zone3_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)

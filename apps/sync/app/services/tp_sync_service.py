@@ -119,6 +119,7 @@ class TPSyncService:
                 "max_power": w.get("powerMaximum"),
                 "normalized_power": w.get("normalizedPowerActual") or w.get("normalizedPower"),
                 "calories": w.get("calories") or w.get("caloriesUsed"),
+                "elevation_gain_m": w.get("elevationGain"),
             }
 
             details = self.tp.get_workout_details(workout_id)
