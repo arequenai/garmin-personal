@@ -1,6 +1,23 @@
 import time
+from functools import partial
+from urllib.parse import urljoin
 
 from garminconnect import Garmin
+
+
+def _cookie_request(garth_client, cookie_str, method, subdomain, path, /, api=False,
+                    referrer=False, headers={}, **kwargs):
+    """Replacement for garth.Client.request that uses cookies instead of OAuth."""
+    url = f"https://{subdomain}.{garth_client.domain}"
+    url = urljoin(url, path)
+    if referrer is True and garth_client.last_resp:
+        headers["referer"] = garth_client.last_resp.url
+    headers["Cookie"] = cookie_str
+    garth_client.last_resp = garth_client.sess.request(
+        method, url, headers=headers, timeout=garth_client.timeout, **kwargs,
+    )
+    garth_client.last_resp.raise_for_status()
+    return garth_client.last_resp
 
 
 class GarminClient:
@@ -13,39 +30,15 @@ class GarminClient:
         self._client = Garmin(self.email, self.password)
         self._client.login(tokenstore=tokenstore)
 
-    def login_with_browser_token(self, browser_token: dict) -> None:
-        """Login using OAuth2 token extracted from browser Local Storage.
+    def login_with_cookies(self, cookie_str: str) -> None:
+        """Login using raw browser cookies from Chrome DevTools.
 
-        Sets a dummy OAuth1 token to satisfy garth's assertion, and the real
-        OAuth2 token from the browser. Works as long as the access_token
-        hasn't expired (~5 min from browser copy).
+        Monkey-patches garth's request method to send cookies instead of
+        OAuth Bearer tokens. All garminconnect API methods work transparently.
         """
-        from garth.sso import OAuth1Token, OAuth2Token
-
         self._client = Garmin(self.email, self.password)
-        # Initialize garth without going through SSO
-        self._client.garth.oauth1_token = OAuth1Token(
-            oauth_token="browser_session",
-            oauth_token_secret="browser_session",
-        )
-        expires_ms = int(browser_token.get("expires", 0))
-        refresh_expires_ms = int(browser_token.get("refresh_token_expires", 0))
-        self._client.garth.oauth2_token = OAuth2Token(
-            scope=browser_token.get("scope", ""),
-            jti=browser_token.get("jti", ""),
-            token_type=browser_token.get("token_type", "Bearer"),
-            access_token=browser_token["access_token"],
-            refresh_token=browser_token.get("refresh_token", ""),
-            expires_in=int(browser_token.get("expires_in", 300)),
-            expires_at=expires_ms // 1000 if expires_ms else int(time.time()) + 300,
-            refresh_token_expires_in=int(
-                browser_token.get("refresh_token_expires_in", 7200)
-            ),
-            refresh_token_expires_at=(
-                refresh_expires_ms // 1000
-                if refresh_expires_ms
-                else int(time.time()) + 7200
-            ),
+        self._client.garth.request = partial(
+            _cookie_request, self._client.garth, cookie_str
         )
 
     def dump_tokens(self) -> str | None:
@@ -54,7 +47,10 @@ class GarminClient:
         Returns None if the client has not yet successfully logged in.
         """
         if self._client and self._client.garth:
-            return self._client.garth.dumps()
+            try:
+                return self._client.garth.dumps()
+            except Exception:
+                return None
         return None
 
     def get_daily_summary(self, date_str: str) -> dict:

@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from app.services.sync_orchestrator import run_sync_for_date, set_browser_token, set_garmin_tokens
+from app.services.sync_orchestrator import run_sync_for_date, set_garmin_cookies, set_garmin_tokens
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync", tags=["sync"])
@@ -44,17 +44,18 @@ def upload_garmin_tokens(payload: GarminTokensPayload):
     return {"status": "tokens_saved"}
 
 
-@router.post("/browser-token")
-def upload_browser_token(token: dict):
-    """Accept raw browser OAuth2 token from Chrome Local Storage.
+class CookiePayload(BaseModel):
+    cookies: str
 
-    Copy from Chrome: F12 → Application → Local Storage → connect.garmin.com → token
-    Upload: curl -X POST .../api/sync/browser-token -H 'Content-Type: application/json' -d @token.json
+
+@router.post("/garmin-cookies")
+def upload_garmin_cookies(payload: CookiePayload):
+    """Accept raw browser cookies from Chrome DevTools.
+
+    Copy from Chrome: F12 → Network → any request → Request Headers → Cookie value
     """
-    if "access_token" not in token:
-        return {"status": "error", "detail": "Missing access_token field"}
-    set_browser_token(token)
-    return {"status": "browser_token_saved"}
+    set_garmin_cookies(payload.cookies)
+    return {"status": "cookies_saved"}
 
 
 @router.post("/trigger")
