@@ -107,7 +107,9 @@ def _build_strip(
 ) -> list[StripMetric]:
     # Calories — use adaptive target, fall back to MFP goal, then user_goals
     cal_val = nutrition.calories if nutrition else None
-    adaptive_targets = fetch_and_compute_targets(db, target_date, target_date)
+    adaptive_targets = fetch_and_compute_targets(
+        db, target_date - timedelta(days=1), target_date
+    )
     cal_target_adaptive = adaptive_targets.get(target_date)
     cal_goal = nutrition.calories_goal if nutrition and nutrition.calories_goal else None
     cal_target = cal_target_adaptive or cal_goal or _goal_val(goals, "calories")
