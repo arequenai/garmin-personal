@@ -125,6 +125,7 @@ class TPSyncService:
             details = self.tp.get_workout_details(workout_id)
             if details:
                 values.update(self._extract_zones(details))
+                values["workout_details_json"] = details
 
             self._upsert(TPCompletedWorkout, "tp_workout_id", workout_id, values)
         self.db.commit()

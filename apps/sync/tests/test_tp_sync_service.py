@@ -80,6 +80,18 @@ def make_mock_tp_client():
         "powerZones": [],
         "laps": [{"lapIndex": 1, "distance": 8200}],
     }
+    mock.get_workout_details.return_value = {
+        "workoutId": 111,
+        "timeInHeartRateZones": {
+            "timeInZones": [
+                {"seconds": 300, "label": "Z1"},
+                {"seconds": 900, "label": "Z2"},
+                {"seconds": 600, "label": "Z3"},
+                {"seconds": 400, "label": "Z4"},
+                {"seconds": 100, "label": "Z5"},
+            ]
+        },
+    }
     return mock
 
 
@@ -133,6 +145,7 @@ def test_sync_completed_workouts(db_session):
 def test_sync_completed_workout_analysis_failure(db_session):
     tp = make_mock_tp_client()
     tp.get_workout_analysis.return_value = None
+    tp.get_workout_details.return_value = None
     service = TPSyncService(db=db_session, tp_client=tp)
     service.sync_completed_workouts(date(2026, 4, 4))
 
@@ -149,3 +162,32 @@ def test_sync_all(db_session):
     assert db_session.query(TPFitnessData).count() == 1
     assert db_session.query(TPPlannedWorkout).count() == 2
     assert db_session.query(TPCompletedWorkout).count() == 1
+
+
+def test_sync_completed_stores_workout_details_json(db_session):
+    """sync_completed_workouts_range stores the full details response in workout_details_json."""
+    mock_tp = make_mock_tp_client()
+    mock_tp.get_workouts.return_value = [{
+        "workoutId": "9999",
+        "workoutDay": "2026-04-01",
+        "workoutTypeValueId": 3,
+        "totalTime": 1.0,
+        "distance": 10000,
+        "tssActual": 80,
+    }]
+    details_payload = {
+        "workoutId": 9999,
+        "timeInHeartRateZones": {"timeInZones": [{"seconds": 100, "minimum": 93, "maximum": 142, "label": "Z1"}]},
+        "timeInSpeedZones": {"timeInZones": [{"seconds": 200, "minimum": 2.0, "maximum": 3.0, "label": "Recovery Run"}]},
+        "meanMaxSpeedsByDistance": {"meanMaxes": [{"label": "MM1Kilometer", "value": 3.5}]},
+    }
+    mock_tp.get_workout_details.return_value = details_payload
+
+    svc = TPSyncService(db=db_session, tp_client=mock_tp)
+    svc.sync_completed_workouts_range(date(2026, 4, 1), date(2026, 4, 1))
+
+    w = db_session.query(TPCompletedWorkout).filter(TPCompletedWorkout.tp_workout_id == "9999").first()
+    assert w is not None
+    assert w.workout_details_json is not None
+    assert "timeInHeartRateZones" in w.workout_details_json
+    assert "timeInSpeedZones" in w.workout_details_json
