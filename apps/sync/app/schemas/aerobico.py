@@ -14,6 +14,7 @@ class PMCDataPoint(BaseModel):
 
 
 class CalendarPlannedWorkout(BaseModel):
+    tp_workout_id: str
     date: date
     title: str | None
     workout_type: str | None
@@ -26,6 +27,7 @@ class CalendarPlannedWorkout(BaseModel):
 
 
 class CalendarCompletedWorkout(BaseModel):
+    tp_workout_id: str
     date: date
     title: str | None
     workout_type: str | None

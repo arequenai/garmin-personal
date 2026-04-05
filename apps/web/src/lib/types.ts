@@ -69,6 +69,7 @@ export interface PMCDataPoint {
 }
 
 export interface CalendarPlannedWorkout {
+  tp_workout_id: string;
   date: string;
   title: string | null;
   workout_type: string | null;
@@ -79,6 +80,7 @@ export interface CalendarPlannedWorkout {
 }
 
 export interface CalendarCompletedWorkout {
+  tp_workout_id: string;
   date: string;
   title: string | null;
   workout_type: string | null;

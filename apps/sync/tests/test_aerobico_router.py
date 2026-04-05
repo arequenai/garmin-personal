@@ -93,6 +93,25 @@ def test_calendar_returns_planned_and_completed(client, db):
     assert data["completed"][0]["title"] == "Intervals"
 
 
+def test_calendar_returns_tp_workout_id(client, db):
+    db.add(TPPlannedWorkout(
+        tp_workout_id="plan-99", date=date(2026, 4, 10),
+        title="Easy Run", workout_type="run",
+        duration_sec_planned=3600, tss_planned=50, distance_m_planned=10000,
+    ))
+    db.add(TPCompletedWorkout(
+        tp_workout_id="done-99", date=date(2026, 4, 3),
+        title="Intervals", workout_type="run",
+        tss=85, distance_m=12000, duration_sec=4200,
+    ))
+    db.commit()
+    resp = client.get("/api/aerobico/calendar?from_date=2026-04-01&to_date=2026-04-15")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["planned"][0]["tp_workout_id"] == "plan-99"
+    assert data["completed"][0]["tp_workout_id"] == "done-99"
+
+
 def test_calendar_empty(client, db):
     resp = client.get("/api/aerobico/calendar?from_date=2026-01-01&to_date=2026-01-31")
     assert resp.status_code == 200
