@@ -50,14 +50,22 @@ function formatKmLong(meters: number | null): string {
   return `${(meters / 1000).toFixed(2)} km`;
 }
 
-function WorkoutBlock({ workout, planned }: {
+function WorkoutBlock({ workout, planned, selectedId, onSelect }: {
   workout: CalendarCompletedWorkout | CalendarPlannedWorkout;
   planned?: boolean;
+  selectedId: string | null;
+  onSelect: (id: string, type: "completed" | "planned") => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const type = workout.workout_type;
   const title = workout.title;
   const color = getColor(type);
+
+  const isSelected = workout.tp_workout_id === selectedId;
+
+  const handleClick = () => {
+    onSelect(workout.tp_workout_id, planned ? "planned" : "completed");
+  };
 
   const duration = planned
     ? formatDuration((workout as CalendarPlannedWorkout).duration_sec_planned)
@@ -92,13 +100,16 @@ function WorkoutBlock({ workout, planned }: {
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        className={`cursor-default rounded px-1.5 py-0.5 text-[10px] leading-tight ${
+        onClick={handleClick}
+        className={`cursor-pointer rounded px-1.5 py-0.5 text-[10px] leading-tight transition-all ${
           planned ? "opacity-50 border border-dashed" : ""
         }`}
         style={{
           borderLeft: planned ? undefined : `2px solid ${color}`,
           borderColor: planned ? color : undefined,
           backgroundColor: planned ? "transparent" : `${color}10`,
+          boxShadow: isSelected ? `0 0 8px ${color}40` : undefined,
+          outline: isSelected ? `1px solid ${color}` : undefined,
         }}
       >
         <div className="truncate font-medium text-whoop-text">
@@ -144,9 +155,11 @@ function WorkoutBlock({ workout, planned }: {
 interface TrainingCalendarProps {
   from: string;
   to: string;
+  selectedWorkoutId: string | null;
+  onSelectWorkout: (id: string, type: "completed" | "planned") => void;
 }
 
-export function TrainingCalendar({ from, to }: TrainingCalendarProps) {
+export function TrainingCalendar({ from, to, selectedWorkoutId, onSelectWorkout }: TrainingCalendarProps) {
   const fromDate = new Date(from + "T00:00:00");
   const toDate = new Date(to + "T00:00:00");
 
@@ -273,10 +286,10 @@ export function TrainingCalendar({ from, to }: TrainingCalendarProps) {
                   {/* Workouts */}
                   <div className="space-y-0.5">
                     {completed.map((w, i) => (
-                      <WorkoutBlock key={`c-${i}`} workout={w} />
+                      <WorkoutBlock key={`c-${i}`} workout={w} selectedId={selectedWorkoutId} onSelect={onSelectWorkout} />
                     ))}
                     {planned.map((w, i) => (
-                      <WorkoutBlock key={`p-${i}`} workout={w} planned />
+                      <WorkoutBlock key={`p-${i}`} workout={w} planned selectedId={selectedWorkoutId} onSelect={onSelectWorkout} />
                     ))}
                   </div>
                 </div>

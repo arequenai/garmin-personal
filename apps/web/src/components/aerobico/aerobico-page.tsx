@@ -12,6 +12,7 @@ import { PMCChart } from "./pmc-chart";
 import { TrainingCalendar } from "./training-calendar";
 import { HRZoneChart } from "./hr-zone-chart";
 import { WeeklyVolumeChart } from "./weekly-volume-chart";
+import { WorkoutDetailDrawer } from "./workout-detail-drawer";
 
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
@@ -45,6 +46,15 @@ export function AerobicoPageClient() {
   const [from, setFrom] = useState(() => defaultFrom(12));
   const [to, setTo] = useState(today);
   const [activePreset, setActivePreset] = useState("1Y");
+  const [selectedWorkout, setSelectedWorkout] = useState<{ id: string; type: "completed" | "planned" } | null>(null);
+
+  const handleSelectWorkout = (id: string, type: "completed" | "planned") => {
+    setSelectedWorkout((prev) =>
+      prev?.id === id ? null : { id, type }
+    );
+  };
+
+  const handleCloseDrawer = () => setSelectedWorkout(null);
 
   const pmc = useAerobicPMC(from, to);
   const volume = useAerobicVolume(from, to);
@@ -117,8 +127,19 @@ export function AerobicoPageClient() {
 
         {/* Training Calendar */}
         <div className="mt-4">
-          <TrainingCalendar from={from} to={to} />
+          <TrainingCalendar
+            from={from}
+            to={to}
+            selectedWorkoutId={selectedWorkout?.id ?? null}
+            onSelectWorkout={handleSelectWorkout}
+          />
         </div>
+
+        {/* Workout Detail Drawer */}
+        <WorkoutDetailDrawer
+          selection={selectedWorkout}
+          onClose={handleCloseDrawer}
+        />
 
         {/* HR Zones */}
         <div className="mt-4">
