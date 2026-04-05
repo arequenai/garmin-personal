@@ -4,11 +4,11 @@ import { useEffect, useRef } from "react";
 import {
   createChart,
   type IChartApi,
-  ColorType,
   LineSeries as LineSeriesDef,
   BaselineSeries as BaselineSeriesDef,
 } from "lightweight-charts";
 import type { PMCDataPoint } from "@/lib/types";
+import { BASE_CHART_OPTIONS } from "@/lib/chart-config";
 
 interface PMCChartProps {
   data: PMCDataPoint[];
@@ -22,19 +22,9 @@ export function PMCChart({ data }: PMCChartProps) {
     if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
+      ...BASE_CHART_OPTIONS,
       width: containerRef.current.clientWidth,
       height: 350,
-      layout: {
-        background: { type: ColorType.Solid, color: "#1a1a1a" },
-        textColor: "#888888",
-      },
-      grid: {
-        vertLines: { color: "#2a2a2a" },
-        horzLines: { color: "#2a2a2a" },
-      },
-      crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: "#2a2a2a" },
-      timeScale: { borderColor: "#2a2a2a" },
     });
     chartRef.current = chart;
 

@@ -11,8 +11,8 @@ from app.models.tp_fitness_data import TPFitnessData
 from app.models.tp_planned_workout import TPPlannedWorkout
 from app.schemas.aerobico import (
     CalendarResponse,
-    HRZonesResponse,
     PMCDataPoint,
+    WeeklyHRZones,
     WeeklyVolume,
 )
 
@@ -122,7 +122,7 @@ def get_volume(
     return result
 
 
-@router.get("/hr-zones", response_model=HRZonesResponse)
+@router.get("/hr-zones", response_model=list[WeeklyHRZones])
 def get_hr_zones(
     from_date: date = Query(default_factory=lambda: date.today() - timedelta(weeks=4)),
     to_date: date = Query(default_factory=lambda: date.today()),
@@ -130,13 +130,33 @@ def get_hr_zones(
 ):
     workouts = (
         db.query(TPCompletedWorkout)
-        .filter(TPCompletedWorkout.date >= from_date, TPCompletedWorkout.date <= to_date)
+        .filter(
+            TPCompletedWorkout.date >= from_date,
+            TPCompletedWorkout.date <= to_date,
+        )
         .all()
     )
 
-    totals = {f"zone{i}_sec": 0 for i in range(1, 6)}
-    for w in workouts:
-        for i in range(1, 6):
-            totals[f"zone{i}_sec"] += getattr(w, f"hr_zone{i}_sec", None) or 0
+    # Build all weeks in range
+    first_week = from_date - timedelta(days=from_date.weekday())
+    last_week = to_date - timedelta(days=to_date.weekday())
+    weeks: dict[date, dict[str, int]] = {}
+    ws = first_week
+    while ws <= last_week:
+        weeks[ws] = {f"zone{i}_sec": 0 for i in range(1, 6)}
+        ws += timedelta(weeks=1)
 
-    return HRZonesResponse(**totals)
+    # Accumulate zone data, excluding strength workouts
+    for w in workouts:
+        if (w.workout_type or "").lower() in ("strength",):
+            continue
+        week_start = w.date - timedelta(days=w.date.weekday())
+        if week_start not in weeks:
+            weeks[week_start] = {f"zone{i}_sec": 0 for i in range(1, 6)}
+        for i in range(1, 6):
+            weeks[week_start][f"zone{i}_sec"] += getattr(w, f"hr_zone{i}_sec", None) or 0
+
+    return [
+        WeeklyHRZones(week_start=ws, **vals)
+        for ws, vals in sorted(weeks.items())
+    ]

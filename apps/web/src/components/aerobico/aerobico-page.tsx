@@ -22,6 +22,7 @@ function today(): string {
 }
 
 const PRESETS = [
+  { label: "1M", months: 1 },
   { label: "3M", months: 3 },
   { label: "6M", months: 6 },
   { label: "1Y", months: 12 },
@@ -112,23 +113,24 @@ export function AerobicoPageClient() {
         )}
         {pmc.data && <PMCChart data={pmc.data} />}
 
-        {/* Calendar + HR Zones row */}
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TrainingCalendar />
+        {/* Training Calendar */}
+        <div className="mt-4">
+          <TrainingCalendar from={from} to={to} />
+        </div>
 
-          <div>
-            {hrZones.loading && (
-              <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-                <div className="h-[200px] animate-pulse rounded bg-whoop-surface" />
-              </div>
-            )}
-            {hrZones.error && (
-              <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
-                <ChartError onRetry={retryHrZones} />
-              </div>
-            )}
-            {hrZones.data && <HRZoneChart data={hrZones.data} />}
-          </div>
+        {/* HR Zones */}
+        <div className="mt-4">
+          {hrZones.loading && (
+            <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
+              <div className="h-[200px] animate-pulse rounded bg-whoop-surface" />
+            </div>
+          )}
+          {hrZones.error && (
+            <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
+              <ChartError onRetry={retryHrZones} />
+            </div>
+          )}
+          {hrZones.data && <HRZoneChart data={hrZones.data} />}
         </div>
 
         {/* Weekly Volume */}

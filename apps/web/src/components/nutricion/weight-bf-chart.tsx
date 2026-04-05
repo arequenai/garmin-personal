@@ -4,10 +4,10 @@ import { useEffect, useRef } from "react";
 import {
   createChart,
   type IChartApi,
-  ColorType,
   LineSeries as LineSeriesDef,
 } from "lightweight-charts";
 import type { BodyCompositionDay } from "@/lib/types";
+import { BASE_CHART_OPTIONS } from "@/lib/chart-config";
 
 interface WeightBFChartProps {
   data: BodyCompositionDay[];
@@ -23,20 +23,11 @@ export function WeightBFChart({ data, from, to }: WeightBFChartProps) {
     if (!containerRef.current || data.length === 0) return;
 
     const chart = createChart(containerRef.current, {
+      ...BASE_CHART_OPTIONS,
       width: containerRef.current.clientWidth,
       height: 200,
-      layout: {
-        background: { type: ColorType.Solid, color: "#1a1a1a" },
-        textColor: "#888888",
-      },
-      grid: {
-        vertLines: { color: "#2a2a2a" },
-        horzLines: { color: "#2a2a2a" },
-      },
-      crosshair: { mode: 0 },
       rightPriceScale: { borderColor: "#2a2a2a", visible: true },
       leftPriceScale: { borderColor: "#2a2a2a", visible: true },
-      timeScale: { borderColor: "#2a2a2a" },
     });
     chartRef.current = chart;
 

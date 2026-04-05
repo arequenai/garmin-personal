@@ -17,6 +17,7 @@ class CalendarPlannedWorkout(BaseModel):
     date: date
     title: str | None
     workout_type: str | None
+    description: str | None
     duration_sec_planned: int | None
     tss_planned: float | None
     distance_m_planned: float | None
@@ -28,6 +29,7 @@ class CalendarCompletedWorkout(BaseModel):
     date: date
     title: str | None
     workout_type: str | None
+    description: str | None
     tss: float | None
     distance_m: float | None
     duration_sec: int | None
@@ -46,7 +48,8 @@ class WeeklyVolume(BaseModel):
     elevation_m: float
 
 
-class HRZonesResponse(BaseModel):
+class WeeklyHRZones(BaseModel):
+    week_start: date
     zone1_sec: int
     zone2_sec: int
     zone3_sec: int

@@ -17,15 +17,10 @@ export function useAerobicHRZones(from: string, to: string) {
     setError(null);
   }
 
-  const toDate = new Date(to);
-  const fourWeeksBack = new Date(toDate);
-  fourWeeksBack.setDate(fourWeeksBack.getDate() - 28);
-  const effectiveFrom = fourWeeksBack.toISOString().split("T")[0];
-
   useEffect(() => {
     let cancelled = false;
 
-    fetchApi<HRZonesData>(`/api/aerobico/hr-zones?from_date=${effectiveFrom}&to_date=${to}`)
+    fetchApi<HRZonesData>(`/api/aerobico/hr-zones?from_date=${from}&to_date=${to}`)
       .then((result) => {
         if (!cancelled) {
           setData(result);
@@ -40,7 +35,7 @@ export function useAerobicHRZones(from: string, to: string) {
       });
 
     return () => { cancelled = true; };
-  }, [effectiveFrom, to]);
+  }, [from, to]);
 
   return { data, loading, error };
 }

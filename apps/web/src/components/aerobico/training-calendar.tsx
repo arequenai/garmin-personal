@@ -11,6 +11,8 @@ const WORKOUT_COLORS: Record<string, string> = {
   run: "#00d68f",
   bike: "#4da6ff",
   swim: "#00c4b4",
+  strength: "#a855f7",
+  hike: "#f59e0b",
 };
 const DEFAULT_COLOR = "#6b7280";
 
@@ -24,63 +26,137 @@ function getColor(type: string | null): string {
 }
 
 function formatDuration(sec: number | null): string {
-  if (!sec) return "--";
+  if (!sec) return "";
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  return h > 0 ? `${h}h${m}m` : `${m}m`;
+  return h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${m}m`;
 }
 
 function formatKm(meters: number | null): string {
-  if (!meters) return "--";
-  return `${(meters / 1000).toFixed(1)}km`;
+  if (!meters || meters < 100) return "";
+  return `${(meters / 1000).toFixed(1)}k`;
 }
 
-interface DayPopoverProps {
-  planned: CalendarPlannedWorkout[];
-  completed: CalendarCompletedWorkout[];
+function formatDurationLong(sec: number | null): string {
+  if (!sec) return "";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function DayPopover({ planned, completed }: DayPopoverProps) {
+function formatKmLong(meters: number | null): string {
+  if (!meters || meters < 100) return "";
+  return `${(meters / 1000).toFixed(2)} km`;
+}
+
+function WorkoutBlock({ workout, planned }: {
+  workout: CalendarCompletedWorkout | CalendarPlannedWorkout;
+  planned?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const type = workout.workout_type;
+  const title = workout.title;
+  const color = getColor(type);
+
+  const duration = planned
+    ? formatDuration((workout as CalendarPlannedWorkout).duration_sec_planned)
+    : formatDuration((workout as CalendarCompletedWorkout).duration_sec);
+  const distance = planned
+    ? formatKm((workout as CalendarPlannedWorkout).distance_m_planned)
+    : formatKm((workout as CalendarCompletedWorkout).distance_m);
+
+  // Tooltip detail lines
+  const details: string[] = [];
+  if (type) details.push(type);
+  if (planned) {
+    const p = workout as CalendarPlannedWorkout;
+    const dur = formatDurationLong(p.duration_sec_planned);
+    if (dur) details.push(`Duration: ${dur}`);
+    const dist = formatKmLong(p.distance_m_planned);
+    if (dist) details.push(`Distance: ${dist}`);
+    if (p.tss_planned != null) details.push(`TSS: ${p.tss_planned}`);
+  } else {
+    const c = workout as CalendarCompletedWorkout;
+    const dur = formatDurationLong(c.duration_sec);
+    if (dur) details.push(`Duration: ${dur}`);
+    const dist = formatKmLong(c.distance_m);
+    if (dist) details.push(`Distance: ${dist}`);
+    if (c.tss != null) details.push(`TSS: ${Math.round(c.tss)}`);
+  }
+
   return (
-    <div className="absolute left-1/2 top-full z-50 mt-1 -translate-x-1/2 rounded-lg border border-whoop-border bg-whoop-card p-2.5 shadow-lg"
-         style={{ minWidth: "180px" }}>
-      {completed.map((w, i) => (
-        <div key={`c-${i}`} className="mb-1.5 last:mb-0">
-          <div className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full" style={{ background: getColor(w.workout_type) }} />
-            <span className="text-xs font-medium text-whoop-text">{w.title || "Workout"}</span>
-          </div>
-          <div className="ml-3.5 text-[10px] text-whoop-text-muted">
-            TSS {w.tss ?? "--"} · {formatKm(w.distance_m)} · {formatDuration(w.duration_sec)}
-          </div>
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div
+        className={`cursor-default rounded px-1.5 py-0.5 text-[10px] leading-tight ${
+          planned ? "opacity-50 border border-dashed" : ""
+        }`}
+        style={{
+          borderLeft: planned ? undefined : `2px solid ${color}`,
+          borderColor: planned ? color : undefined,
+          backgroundColor: planned ? "transparent" : `${color}10`,
+        }}
+      >
+        <div className="truncate font-medium text-whoop-text">
+          {title || (planned ? "Planned" : "Workout")}
         </div>
-      ))}
-      {planned.map((w, i) => (
-        <div key={`p-${i}`} className="mb-1.5 last:mb-0 opacity-60">
-          <div className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full border border-dashed"
-                 style={{ borderColor: getColor(w.workout_type) }} />
-            <span className="text-xs font-medium text-whoop-text">{w.title || "Planned"}</span>
+        {(duration || distance) && (
+          <div className="text-whoop-text-muted">
+            {[duration, distance].filter(Boolean).join(" · ")}
           </div>
-          <div className="ml-3.5 text-[10px] text-whoop-text-muted">
-            TSS {w.tss_planned ?? "--"} · {formatKm(w.distance_m_planned)} · {formatDuration(w.duration_sec_planned)}
+        )}
+      </div>
+
+      {/* Hover tooltip */}
+      {hovered && (details.length > 0 || workout.description) && (
+        <div className="absolute left-0 bottom-full z-50 mb-1 w-64 max-h-72 overflow-y-auto rounded-lg border border-whoop-border bg-whoop-card p-2.5 shadow-xl">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+            <span className="text-xs font-semibold text-whoop-text truncate">
+              {title || (planned ? "Planned" : "Workout")}
+            </span>
           </div>
+          {planned && (
+            <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-whoop-text-muted">
+              Planned
+            </div>
+          )}
+          {details.map((line, i) => (
+            <div key={i} className="text-[11px] leading-relaxed text-whoop-text-secondary">
+              {line}
+            </div>
+          ))}
+          {workout.description && (
+            <div className="mt-2 border-t border-whoop-border/50 pt-2 text-[11px] leading-relaxed text-whoop-text-secondary whitespace-pre-line">
+              {workout.description}
+            </div>
+          )}
         </div>
-      ))}
+      )}
     </div>
   );
 }
 
-export function TrainingCalendar() {
-  const [viewDate, setViewDate] = useState(() => new Date());
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+interface TrainingCalendarProps {
+  from: string;
+  to: string;
+}
 
-  const from = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-  const to = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-  const fromStr = from.toISOString().split("T")[0];
-  const toStr = to.toISOString().split("T")[0];
+export function TrainingCalendar({ from, to }: TrainingCalendarProps) {
+  const fromDate = new Date(from + "T00:00:00");
+  const toDate = new Date(to + "T00:00:00");
 
-  const { data, loading } = useAerobicCalendar(fromStr, toStr);
+  const [viewDate, setViewDate] = useState(() => toDate);
+
+  const calFrom = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+  const calTo = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+  const calFromStr = calFrom.toISOString().split("T")[0];
+  const calToStr = calTo.toISOString().split("T")[0];
+
+  const { data, loading } = useAerobicCalendar(calFromStr, calToStr);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -89,88 +165,119 @@ export function TrainingCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const minMonth = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+  const maxMonth = new Date(toDate.getFullYear(), toDate.getMonth(), 1);
+  const canPrev = new Date(year, month - 1, 1) >= minMonth;
+  const canNext = new Date(year, month + 1, 1) <= maxMonth;
+
+  const prevMonth = () => { if (canPrev) setViewDate(new Date(year, month - 1, 1)); };
+  const nextMonth = () => { if (canNext) setViewDate(new Date(year, month + 1, 1)); };
 
   const plannedByDate: Record<string, CalendarPlannedWorkout[]> = {};
   const completedByDate: Record<string, CalendarCompletedWorkout[]> = {};
   if (data) {
-    for (const w of data.planned) {
-      (plannedByDate[w.date] ??= []).push(w);
-    }
     for (const w of data.completed) {
       (completedByDate[w.date] ??= []).push(w);
+    }
+    // Only show planned workouts that don't have a matching completed workout
+    for (const w of data.planned) {
+      const completedTitles = (completedByDate[w.date] || []).map((c) => c.title?.toLowerCase());
+      if (!completedTitles.includes(w.title?.toLowerCase())) {
+        (plannedByDate[w.date] ??= []).push(w);
+      }
     }
   }
 
   const monthLabel = firstDay.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Build grid cells: empty padding + day cells
+  const cells: { day: number; dateStr: string }[] = [];
+  for (let i = 0; i < daysInMonth; i++) {
+    const day = i + 1;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    cells.push({ day, dateStr });
+  }
 
   return (
     <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-whoop-text">Training Calendar</h2>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="rounded p-1 text-whoop-text-muted hover:bg-whoop-surface">
+          <button
+            onClick={prevMonth}
+            disabled={!canPrev}
+            className="rounded p-1 text-whoop-text-muted hover:bg-whoop-surface disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <ChevronLeft size={16} />
           </button>
-          <span className="text-xs font-medium text-whoop-text-secondary" style={{ minWidth: "120px", textAlign: "center" }}>
+          <span className="text-xs font-medium text-whoop-text-secondary" style={{ minWidth: "130px", textAlign: "center" }}>
             {monthLabel}
           </span>
-          <button onClick={nextMonth} className="rounded p-1 text-whoop-text-muted hover:bg-whoop-surface">
+          <button
+            onClick={nextMonth}
+            disabled={!canNext}
+            className="rounded p-1 text-whoop-text-muted hover:bg-whoop-surface disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <ChevronRight size={16} />
           </button>
         </div>
       </div>
 
-      {loading && <div className="py-8 text-center text-xs text-whoop-text-muted">Loading...</div>}
+      {loading && <div className="py-12 text-center text-xs text-whoop-text-muted">Loading...</div>}
 
       {!loading && (
         <>
-          <div className="grid grid-cols-7 gap-px mb-1">
+          {/* Day headers */}
+          <div className="grid grid-cols-7 border-b border-whoop-border">
             {DAYS.map((d) => (
-              <div key={d} className="text-center text-[9px] font-medium text-whoop-text-muted py-1">
+              <div key={d} className="py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-whoop-text-muted">
                 {d}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-px">
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7">
+            {/* Empty cells for offset */}
             {Array.from({ length: startOffset }).map((_, i) => (
-              <div key={`empty-${i}`} className="h-10" />
+              <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-whoop-border/30" />
             ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+            {cells.map(({ day, dateStr }) => {
               const planned = plannedByDate[dateStr] || [];
               const completed = completedByDate[dateStr] || [];
-              const hasWorkout = planned.length > 0 || completed.length > 0;
               const isToday = dateStr === todayStr;
-              const isSelected = dateStr === selectedDay;
+              const isPast = dateStr < todayStr;
+              const colIndex = (startOffset + day - 1) % 7;
+              const isLastCol = colIndex === 6;
 
               return (
                 <div
                   key={day}
-                  className={`relative flex h-10 cursor-pointer flex-col items-center justify-center rounded-md transition-colors ${
-                    isToday ? "bg-whoop-surface" : "hover:bg-whoop-surface/50"
-                  }`}
-                  onClick={() => setSelectedDay(isSelected ? null : hasWorkout ? dateStr : null)}
+                  className={`min-h-[80px] border-b border-whoop-border/30 p-1 ${
+                    !isLastCol ? "border-r border-whoop-border/30" : ""
+                  } ${isToday ? "bg-whoop-surface/50" : ""}`}
                 >
-                  <span className={`text-[11px] ${isToday ? "font-bold text-whoop-text" : "text-whoop-text-secondary"}`}>
+                  {/* Day number */}
+                  <div className={`mb-0.5 text-[11px] ${
+                    isToday
+                      ? "font-bold text-whoop-text"
+                      : isPast
+                        ? "text-whoop-text-muted"
+                        : "text-whoop-text-secondary"
+                  }`}>
                     {day}
-                  </span>
-                  {hasWorkout && (
-                    <div className="mt-0.5 flex gap-0.5">
-                      {completed.length > 0 && (
-                        <div className="h-1.5 w-1.5 rounded-full" style={{ background: getColor(completed[0].workout_type) }} />
-                      )}
-                      {planned.length > 0 && (
-                        <div className="h-1.5 w-1.5 rounded-full border" style={{ borderColor: getColor(planned[0].workout_type) }} />
-                      )}
-                    </div>
-                  )}
-                  {isSelected && hasWorkout && (
-                    <DayPopover planned={planned} completed={completed} />
-                  )}
+                  </div>
+
+                  {/* Workouts */}
+                  <div className="space-y-0.5">
+                    {completed.map((w, i) => (
+                      <WorkoutBlock key={`c-${i}`} workout={w} />
+                    ))}
+                    {planned.map((w, i) => (
+                      <WorkoutBlock key={`p-${i}`} workout={w} planned />
+                    ))}
+                  </div>
                 </div>
               );
             })}
