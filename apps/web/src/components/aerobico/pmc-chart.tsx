@@ -12,9 +12,11 @@ import { BASE_CHART_OPTIONS } from "@/lib/chart-config";
 
 interface PMCChartProps {
   data: PMCDataPoint[];
+  from: string;
+  to: string;
 }
 
-export function PMCChart({ data }: PMCChartProps) {
+export function PMCChart({ data, from, to }: PMCChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -61,7 +63,20 @@ export function PMCChart({ data }: PMCChartProps) {
       data.filter((d) => d.tsb != null).map((d) => ({ time: d.date, value: d.tsb! })),
     );
 
-    chart.timeScale().fitContent();
+    // Anchor the time axis to the selected date range
+    const anchorSeries = chart.addSeries(LineSeriesDef, {
+      color: "transparent",
+      lineWidth: 1,
+      crosshairMarkerVisible: false,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      priceScaleId: "",
+    });
+    anchorSeries.setData([
+      { time: from, value: 0 },
+      { time: to, value: 0 },
+    ]);
+    chart.timeScale().setVisibleRange({ from, to });
 
     const handleResize = () => {
       if (containerRef.current) {
@@ -74,7 +89,7 @@ export function PMCChart({ data }: PMCChartProps) {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data]);
+  }, [data, from, to]);
 
   return (
     <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">

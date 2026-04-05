@@ -113,7 +113,7 @@ export function AerobicoPageClient() {
             <ChartError onRetry={retryPmc} />
           </div>
         )}
-        {pmc.data && <ChartErrorBoundary><PMCChart data={pmc.data} /></ChartErrorBoundary>}
+        {pmc.data && <ChartErrorBoundary><PMCChart data={pmc.data} from={from} to={to} /></ChartErrorBoundary>}
 
         {/* Training Calendar */}
         <div className="mt-4">
@@ -132,7 +132,7 @@ export function AerobicoPageClient() {
               <ChartError onRetry={retryHrZones} />
             </div>
           )}
-          {hrZones.data && <ChartErrorBoundary><HRZoneChart data={hrZones.data} /></ChartErrorBoundary>}
+          {hrZones.data && <ChartErrorBoundary><HRZoneChart data={hrZones.data} from={from} to={to} /></ChartErrorBoundary>}
         </div>
 
         {/* Weekly Volume */}
@@ -147,7 +147,7 @@ export function AerobicoPageClient() {
               <ChartError onRetry={retryVolume} />
             </div>
           )}
-          {volume.data && <ChartErrorBoundary><WeeklyVolumeChart data={volume.data} /></ChartErrorBoundary>}
+          {volume.data && <ChartErrorBoundary><WeeklyVolumeChart data={volume.data} from={from} to={to} /></ChartErrorBoundary>}
         </div>
       </div>
     </div>

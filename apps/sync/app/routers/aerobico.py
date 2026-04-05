@@ -112,6 +112,15 @@ def get_volume(
         weeks[week_start]["km"] += km
         weeks[week_start]["elevation_m"] += float(w.elevation_gain_m or 0)
 
+    # Fill all weeks in range so the chart always spans the selected window
+    first_week = from_date - timedelta(days=from_date.weekday())
+    last_week = to_date - timedelta(days=to_date.weekday())
+    ws = first_week
+    while ws <= last_week:
+        if ws not in weeks:
+            weeks[ws] = {"km": 0.0, "elevation_m": 0.0}
+        ws += timedelta(weeks=1)
+
     result = [
         WeeklyVolume(
             week_start=ws,

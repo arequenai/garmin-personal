@@ -4,6 +4,8 @@ import type { HRZonesData, WeeklyHRZones } from "@/lib/types";
 
 interface HRZoneChartProps {
   data: HRZonesData;
+  from: string;
+  to: string;
 }
 
 const ZONES = [
@@ -37,6 +39,7 @@ function labelInterval(count: number): number {
 }
 
 export function HRZoneChart({ data }: HRZoneChartProps) {
+  // data already includes all weeks in the from-to range (backend fills empty weeks)
   // Aggregate totals for legend (only non-empty weeks)
   const totals = { zone1_sec: 0, zone2_sec: 0, zone3_sec: 0, zone4_sec: 0, zone5_sec: 0 };
   for (const w of data) {

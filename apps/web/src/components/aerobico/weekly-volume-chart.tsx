@@ -12,14 +12,16 @@ import { BASE_CHART_OPTIONS } from "@/lib/chart-config";
 
 interface WeeklyVolumeChartProps {
   data: WeeklyVolume[];
+  from: string;
+  to: string;
 }
 
-export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
+export function WeeklyVolumeChart({ data, from, to }: WeeklyVolumeChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || data.length === 0) return;
+    if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
       ...BASE_CHART_OPTIONS,
@@ -49,7 +51,20 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
       data.map((d) => ({ time: d.week_start, value: d.elevation_m })),
     );
 
-    chart.timeScale().fitContent();
+    // Anchor the time axis to the selected date range
+    const anchorSeries = chart.addSeries(LineSeriesDef, {
+      color: "transparent",
+      lineWidth: 1,
+      crosshairMarkerVisible: false,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      priceScaleId: "",
+    });
+    anchorSeries.setData([
+      { time: from, value: 0 },
+      { time: to, value: 0 },
+    ]);
+    chart.timeScale().setVisibleRange({ from, to });
 
     const handleResize = () => {
       if (containerRef.current) {
@@ -62,7 +77,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data]);
+  }, [data, from, to]);
 
   return (
     <div className="rounded-xl border border-whoop-border bg-whoop-card p-4">
@@ -72,11 +87,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
           km (blue) · elevation (orange)
         </span>
       </h2>
-      {data.length === 0 ? (
-        <div className="py-8 text-center text-xs text-whoop-text-muted">No volume data</div>
-      ) : (
-        <div ref={containerRef} />
-      )}
+      <div ref={containerRef} />
     </div>
   );
 }
