@@ -7,9 +7,15 @@ class GarminClient:
         self.password = password
         self._client: Garmin | None = None
 
-    def login(self):
+    def login(self, tokenstore: str | None = None):
         self._client = Garmin(self.email, self.password)
-        self._client.login()
+        self._client.login(tokenstore=tokenstore)
+
+    def dump_tokens(self) -> str | None:
+        """Serialize garth session tokens to a base64 string."""
+        if self._client and self._client.garth:
+            return self._client.garth.dumps()
+        return None
 
     def get_daily_summary(self, date_str: str) -> dict:
         """Get daily stats (steps, calories, distance, etc.)."""

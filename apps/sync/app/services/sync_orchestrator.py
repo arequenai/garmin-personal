@@ -16,25 +16,42 @@ logger = logging.getLogger(__name__)
 
 # Cached Garmin client — avoids a fresh login() on every sync invocation.
 _garmin_client: GarminClient | None = None
+_garmin_token_store: str | None = None
 _garmin_login_failed_at: float = 0  # timestamp of last login failure
-_GARMIN_COOLDOWN_SEC = 900  # 15 min cooldown after a login failure
+_GARMIN_COOLDOWN_SEC = 21600  # 6 hour cooldown after a login failure
 
 
 def _get_garmin_client(force_new: bool = False) -> GarminClient:
-    """Return a cached GarminClient, creating one only on first call or after auth failure."""
-    global _garmin_client, _garmin_login_failed_at
+    """Return a cached GarminClient, creating one only on first call or after auth failure.
+
+    Uses garth token persistence to avoid email/password login when possible.
+    """
+    global _garmin_client, _garmin_token_store, _garmin_login_failed_at
 
     if _garmin_login_failed_at and time.time() - _garmin_login_failed_at < _GARMIN_COOLDOWN_SEC:
         raise ConnectionError("Garmin login on cooldown after recent failure")
 
     if _garmin_client is None or force_new:
         try:
-            _garmin_client = GarminClient(
+            client = GarminClient(
                 email=settings.garmin_email, password=settings.garmin_password
             )
-            _garmin_client.login()
+            # Try token-based login first, fall back to email/password
+            if _garmin_token_store and not force_new:
+                try:
+                    client.login(tokenstore=_garmin_token_store)
+                    logger.info("Garmin client logged in (cached tokens)")
+                except Exception:
+                    logger.warning("Token login failed, falling back to credentials")
+                    client.login()
+            else:
+                client.login()
+                logger.info("Garmin client logged in (credentials)")
+
+            # Cache the tokens for next time
+            _garmin_token_store = client.dump_tokens()
+            _garmin_client = client
             _garmin_login_failed_at = 0
-            logger.info("Garmin client logged in (new session)")
         except Exception:
             _garmin_login_failed_at = time.time()
             _garmin_client = None
