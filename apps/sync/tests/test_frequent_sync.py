@@ -1,5 +1,4 @@
-"""Tests for run_frequent_sync() — verifies Garmin is NOT called."""
-from datetime import date
+"""Tests for run_frequent_sync() — verifies only MFP nutrition is synced."""
 from unittest.mock import MagicMock, patch
 
 from app.services.sync_orchestrator import run_frequent_sync
