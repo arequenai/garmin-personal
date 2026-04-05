@@ -95,6 +95,86 @@ export interface CalendarData {
   completed: CalendarCompletedWorkout[];
 }
 
+export interface WorkoutDetailsJSON {
+  timeInHeartRateZones?: {
+    timeInZones: { seconds: number; minimum: number; maximum: number; label: string }[];
+    threshold?: number;
+  };
+  timeInSpeedZones?: {
+    timeInZones: { seconds: number; minimum: number; maximum: number; label: string }[];
+    threshold?: number;
+  };
+  timeInPowerZones?: {
+    timeInZones: { seconds: number; minimum: number; maximum: number; label: string }[];
+    threshold?: number;
+  };
+  meanMaxSpeedsByDistance?: {
+    meanMaxes: { label: string; value: number | null }[];
+  };
+  meanMaxSpeeds?: {
+    meanMaxes: { label: string; value: number | null }[];
+  };
+  meanMaxHeartRates?: {
+    meanMaxes: { label: string; value: number | null }[];
+  };
+  meanMaxPowers?: {
+    meanMaxes: { label: string; value: number | null }[];
+  };
+}
+
+export interface WorkoutStructureStep {
+  type: "step" | "repetition";
+  name?: string;
+  intensityClass?: "warmUp" | "active" | "coolDown";
+  length: { unit: string; value: number };
+  steps?: WorkoutStructureStep[];
+  targets?: { minValue: number; maxValue: number }[];
+  begin?: number;
+  end?: number;
+}
+
+export interface WorkoutStructure {
+  polyline: [number, number][];
+  structure: WorkoutStructureStep[];
+  primaryIntensityMetric?: string;
+}
+
+export interface CompletedWorkoutDetail {
+  tp_workout_id: string;
+  date: string;
+  title: string | null;
+  workout_type: string | null;
+  description: string | null;
+  duration_sec: number | null;
+  distance_m: number | null;
+  tss: number | null;
+  intensity_factor: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+  avg_power: number | null;
+  calories: number | null;
+  elevation_gain_m: number | null;
+  workout_details_json: WorkoutDetailsJSON | null;
+}
+
+export interface PlannedWorkoutDetail {
+  tp_workout_id: string;
+  date: string;
+  title: string | null;
+  workout_type: string | null;
+  description: string | null;
+  duration_sec_planned: number | null;
+  distance_m_planned: number | null;
+  tss_planned: number | null;
+  structure_json: WorkoutStructure | null;
+}
+
+export interface WorkoutWithPlanned {
+  workout: CompletedWorkoutDetail | PlannedWorkoutDetail;
+  planned: PlannedWorkoutDetail | null;
+  completed: CompletedWorkoutDetail | null;
+}
+
 export interface WeeklyVolume {
   week_start: string;
   km: number;
