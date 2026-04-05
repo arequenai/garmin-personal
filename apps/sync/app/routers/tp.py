@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -175,7 +176,12 @@ def _run_tp_zones_backfill() -> None:
         while True:
             batch = (
                 tp_sync.db.query(TPCompletedWorkout)
-                .filter(TPCompletedWorkout.hr_zone1_sec == None)  # noqa: E711
+                .filter(
+                    or_(
+                        TPCompletedWorkout.hr_zone1_sec == None,  # noqa: E711
+                        TPCompletedWorkout.workout_details_json == None,  # noqa: E711
+                    )
+                )
                 .limit(BATCH_SIZE)
                 .all()
             )
@@ -187,6 +193,7 @@ def _run_tp_zones_backfill() -> None:
                 details = tp_sync.tp.get_workout_details(w.tp_workout_id)
                 if not details:
                     continue
+                w.workout_details_json = details
                 zones = tp_sync._extract_zones(details)
                 if any(v > 0 for v in zones.values()):
                     for k, v in zones.items():
