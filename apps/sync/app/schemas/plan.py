@@ -37,7 +37,14 @@ class PillarData(BaseModel):
     drivers: list[PillarDriver] = []
 
 
+class SyncSourceStatus(BaseModel):
+    source: str
+    last_date: date | None = None
+    ok: bool
+
+
 class PlanDailyResponse(BaseModel):
     date: date
     strip: list[StripMetric]
     pillars: list[PillarData]
+    sync_status: list[SyncSourceStatus] = []

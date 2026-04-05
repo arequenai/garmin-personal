@@ -1,4 +1,4 @@
-from sqlalchemy import Date, Float, Integer, String
+from sqlalchemy import Date, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,7 @@ class TPCompletedWorkout(Base):
     date: Mapped[Date] = mapped_column(Date, nullable=False, index=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     workout_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
     distance_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     tss: Mapped[float | None] = mapped_column(Float, nullable=True)

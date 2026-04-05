@@ -71,24 +71,24 @@ class TrainingPeaksClient:
 
     def get_workouts(self, start_date: str, end_date: str) -> list[dict]:
         """Get workouts (both planned and completed) in a date range."""
-        url = f"{BASE_URL}/fitness/v1/athletes/{self._athlete_id}/workouts"
-        resp = httpx.get(url, headers=self._headers(), params={
-            "startDate": start_date,
-            "endDate": end_date,
-        })
+        url = (
+            f"{BASE_URL}/fitness/v6/athletes/{self._athlete_id}"
+            f"/workouts/{start_date}/{end_date}"
+        )
+        resp = httpx.get(url, headers=self._headers(), timeout=15)
         resp.raise_for_status()
         return resp.json()
 
-    def get_workout_analysis(self, workout_id: str) -> dict | None:
-        """Get detailed analysis (zones, laps) for a workout. Returns None on failure."""
+    def get_workout_details(self, workout_id: str) -> dict | None:
+        """Get detailed data (zones, mean-max) for a workout. Returns None on failure."""
         try:
             url = (
-                f"{BASE_URL}/fitness/v1/athletes/{self._athlete_id}"
-                f"/workouts/{workout_id}"
+                f"{BASE_URL}/fitness/v6/athletes/{self._athlete_id}"
+                f"/workouts/{workout_id}/details"
             )
-            resp = httpx.get(url, headers=self._headers())
+            resp = httpx.get(url, headers=self._headers(), timeout=15)
             resp.raise_for_status()
             return resp.json()
         except Exception:
-            logger.debug("Failed to fetch workout analysis for %s", workout_id, exc_info=True)
+            logger.debug("Failed to fetch workout details for %s", workout_id, exc_info=True)
             return None

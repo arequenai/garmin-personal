@@ -62,6 +62,5 @@ class TPCompletedWorkoutResponse(BaseModel):
     power_zone5_sec: int | None
     power_zone6_sec: int | None
     power_zone7_sec: int | None
-    laps_json: dict | None
 
     model_config = {"from_attributes": True}
