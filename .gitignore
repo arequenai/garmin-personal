@@ -51,5 +51,8 @@ htmlcov/
 # Superpowers brainstorm
 .superpowers/
 
+# Garmin token cache
+.garmin_tokens
+
 # Misc
 *.log

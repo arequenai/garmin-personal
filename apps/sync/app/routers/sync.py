@@ -2,8 +2,9 @@ import logging
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks
+from pydantic import BaseModel
 
-from app.services.sync_orchestrator import run_sync_for_date
+from app.services.sync_orchestrator import run_sync_for_date, set_garmin_tokens
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync", tags=["sync"])
@@ -27,6 +28,20 @@ def _tracked_sync(target: date) -> None:
 def sync_status():
     """Return the current state of the most recent background sync."""
     return _sync_state
+
+
+class GarminTokensPayload(BaseModel):
+    tokens: str
+
+
+@router.post("/garmin-tokens")
+def upload_garmin_tokens(payload: GarminTokensPayload):
+    """Accept base64 garth tokens to bypass email/password login.
+
+    Generate tokens locally with: python -m app.scripts.garmin_export_tokens
+    """
+    set_garmin_tokens(payload.tokens)
+    return {"status": "tokens_saved"}
 
 
 @router.post("/trigger")

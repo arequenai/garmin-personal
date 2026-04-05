@@ -1,8 +1,10 @@
 """Shared sync orchestration used by both the API trigger and the scheduler."""
 
 import logging
+import os
 import time
 from datetime import date
+from pathlib import Path
 
 from app.config import settings
 from app.database import SessionLocal
@@ -20,6 +22,42 @@ _garmin_token_store: str | None = None
 _garmin_login_failed_at: float = 0  # timestamp of last login failure
 _GARMIN_COOLDOWN_SEC = 21600  # 6 hour cooldown after a login failure
 
+_TOKEN_FILE = Path(__file__).resolve().parent.parent.parent / ".garmin_tokens"
+
+
+def _load_token_store() -> str | None:
+    """Load garth tokens from env var or disk file."""
+    # 1. Env var takes priority (for initial seeding)
+    if settings.garmin_token_store:
+        return settings.garmin_token_store
+    # 2. Fall back to persisted file
+    if _TOKEN_FILE.exists():
+        try:
+            data = _TOKEN_FILE.read_text().strip()
+            if data:
+                return data
+        except Exception:
+            logger.warning("Failed to read token file %s", _TOKEN_FILE)
+    return None
+
+
+def _save_token_store(tokens: str) -> None:
+    """Persist garth tokens to disk for surviving restarts."""
+    try:
+        _TOKEN_FILE.write_text(tokens)
+        logger.info("Garmin tokens persisted to %s", _TOKEN_FILE)
+    except Exception:
+        logger.warning("Failed to write token file %s", _TOKEN_FILE)
+
+
+def set_garmin_tokens(tokens: str) -> None:
+    """Accept externally-provided garth tokens (e.g. from API upload)."""
+    global _garmin_client, _garmin_token_store, _garmin_login_failed_at
+    _garmin_token_store = tokens
+    _garmin_client = None  # force re-login with new tokens
+    _garmin_login_failed_at = 0  # clear cooldown
+    _save_token_store(tokens)
+
 
 def _get_garmin_client(force_new: bool = False) -> GarminClient:
     """Return a cached GarminClient, creating one only on first call or after auth failure.
@@ -30,6 +68,10 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
 
     if _garmin_login_failed_at and time.time() - _garmin_login_failed_at < _GARMIN_COOLDOWN_SEC:
         raise ConnectionError("Garmin login on cooldown after recent failure")
+
+    # Load persisted tokens on first call
+    if _garmin_token_store is None:
+        _garmin_token_store = _load_token_store()
 
     if _garmin_client is None or force_new:
         try:
@@ -52,8 +94,10 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
                 client.login()
                 logger.info("Garmin client logged in (credentials)")
 
-            # Cache the tokens for next time
+            # Cache and persist the tokens for next time
             _garmin_token_store = client.dump_tokens()
+            if _garmin_token_store:
+                _save_token_store(_garmin_token_store)
             _garmin_client = client
             _garmin_login_failed_at = 0
         except Exception:

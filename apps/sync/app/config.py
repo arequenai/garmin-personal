@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     google_spreadsheet_id: str = ""
     tp_auth_cookie: str = ""
     tp_enabled: bool = False
+    garmin_token_store: str = ""  # base64 garth tokens for seeding login
 
     model_config = {"env_file": "../../.env", "extra": "ignore"}
 
