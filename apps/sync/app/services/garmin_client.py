@@ -1,3 +1,5 @@
+import time
+
 from garminconnect import Garmin
 
 
@@ -10,6 +12,41 @@ class GarminClient:
     def login(self, tokenstore: str | None = None):
         self._client = Garmin(self.email, self.password)
         self._client.login(tokenstore=tokenstore)
+
+    def login_with_browser_token(self, browser_token: dict) -> None:
+        """Login using OAuth2 token extracted from browser Local Storage.
+
+        Sets a dummy OAuth1 token to satisfy garth's assertion, and the real
+        OAuth2 token from the browser. Works as long as the access_token
+        hasn't expired (~5 min from browser copy).
+        """
+        from garth.sso import OAuth1Token, OAuth2Token
+
+        self._client = Garmin(self.email, self.password)
+        # Initialize garth without going through SSO
+        self._client.garth.oauth1_token = OAuth1Token(
+            oauth_token="browser_session",
+            oauth_token_secret="browser_session",
+        )
+        expires_ms = int(browser_token.get("expires", 0))
+        refresh_expires_ms = int(browser_token.get("refresh_token_expires", 0))
+        self._client.garth.oauth2_token = OAuth2Token(
+            scope=browser_token.get("scope", ""),
+            jti=browser_token.get("jti", ""),
+            token_type=browser_token.get("token_type", "Bearer"),
+            access_token=browser_token["access_token"],
+            refresh_token=browser_token.get("refresh_token", ""),
+            expires_in=int(browser_token.get("expires_in", 300)),
+            expires_at=expires_ms // 1000 if expires_ms else int(time.time()) + 300,
+            refresh_token_expires_in=int(
+                browser_token.get("refresh_token_expires_in", 7200)
+            ),
+            refresh_token_expires_at=(
+                refresh_expires_ms // 1000
+                if refresh_expires_ms
+                else int(time.time()) + 7200
+            ),
+        )
 
     def dump_tokens(self) -> str | None:
         """Serialize garth session tokens to a base64 string.

@@ -1,5 +1,6 @@
 """Shared sync orchestration used by both the API trigger and the scheduler."""
 
+import json
 import logging
 import os
 import time
@@ -19,18 +20,18 @@ logger = logging.getLogger(__name__)
 # Cached Garmin client — avoids a fresh login() on every sync invocation.
 _garmin_client: GarminClient | None = None
 _garmin_token_store: str | None = None
+_browser_token: dict | None = None  # raw browser token JSON
 _garmin_login_failed_at: float = 0  # timestamp of last login failure
 _GARMIN_COOLDOWN_SEC = 21600  # 6 hour cooldown after a login failure
 
 _TOKEN_FILE = Path(__file__).resolve().parent.parent.parent / ".garmin_tokens"
+_BROWSER_TOKEN_FILE = Path(__file__).resolve().parent.parent.parent / ".garmin_browser_token"
 
 
 def _load_token_store() -> str | None:
     """Load garth tokens from env var or disk file."""
-    # 1. Env var takes priority (for initial seeding)
     if settings.garmin_token_store:
         return settings.garmin_token_store
-    # 2. Fall back to persisted file
     if _TOKEN_FILE.exists():
         try:
             data = _TOKEN_FILE.read_text().strip()
@@ -38,6 +39,18 @@ def _load_token_store() -> str | None:
                 return data
         except Exception:
             logger.warning("Failed to read token file %s", _TOKEN_FILE)
+    return None
+
+
+def _load_browser_token() -> dict | None:
+    """Load browser token JSON from disk."""
+    if _BROWSER_TOKEN_FILE.exists():
+        try:
+            data = _BROWSER_TOKEN_FILE.read_text().strip()
+            if data:
+                return json.loads(data)
+        except Exception:
+            logger.warning("Failed to read browser token file")
     return None
 
 
@@ -54,17 +67,33 @@ def set_garmin_tokens(tokens: str) -> None:
     """Accept externally-provided garth tokens (e.g. from API upload)."""
     global _garmin_client, _garmin_token_store, _garmin_login_failed_at
     _garmin_token_store = tokens
-    _garmin_client = None  # force re-login with new tokens
-    _garmin_login_failed_at = 0  # clear cooldown
+    _garmin_client = None
+    _garmin_login_failed_at = 0
     _save_token_store(tokens)
+
+
+def set_browser_token(token_json: dict) -> None:
+    """Accept browser OAuth2 token (from Chrome Local Storage)."""
+    global _garmin_client, _browser_token, _garmin_login_failed_at
+    _browser_token = token_json
+    _garmin_client = None
+    _garmin_login_failed_at = 0
+    try:
+        _BROWSER_TOKEN_FILE.write_text(json.dumps(token_json))
+        logger.info("Browser token saved to %s", _BROWSER_TOKEN_FILE)
+    except Exception:
+        logger.warning("Failed to write browser token file")
 
 
 def _get_garmin_client(force_new: bool = False) -> GarminClient:
     """Return a cached GarminClient, creating one only on first call or after auth failure.
 
-    Uses garth token persistence to avoid email/password login when possible.
+    Tries authentication in order:
+    1. Browser OAuth2 token (from Chrome Local Storage upload)
+    2. Garth token store (persisted from previous successful login)
+    3. Email/password login (most likely to be rate-limited)
     """
-    global _garmin_client, _garmin_token_store, _garmin_login_failed_at
+    global _garmin_client, _garmin_token_store, _browser_token, _garmin_login_failed_at
 
     if _garmin_login_failed_at and time.time() - _garmin_login_failed_at < _GARMIN_COOLDOWN_SEC:
         raise ConnectionError("Garmin login on cooldown after recent failure")
@@ -72,25 +101,37 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
     # Load persisted tokens on first call
     if _garmin_token_store is None:
         _garmin_token_store = _load_token_store()
+    if _browser_token is None:
+        _browser_token = _load_browser_token()
 
     if _garmin_client is None or force_new:
         try:
             client = GarminClient(
                 email=settings.garmin_email, password=settings.garmin_password
             )
-            # Try token-based login first, fall back to email/password
-            if _garmin_token_store and not force_new:
+
+            logged_in = False
+
+            # 1. Try browser token first (bypasses SSO entirely)
+            if _browser_token and not force_new:
+                try:
+                    client.login_with_browser_token(_browser_token)
+                    logger.info("Garmin client logged in (browser token)")
+                    logged_in = True
+                except Exception:
+                    logger.warning("Browser token login failed")
+
+            # 2. Try garth token store
+            if not logged_in and _garmin_token_store and not force_new:
                 try:
                     client.login(tokenstore=_garmin_token_store)
                     logger.info("Garmin client logged in (cached tokens)")
+                    logged_in = True
                 except Exception:
-                    logger.warning("Token login failed, falling back to credentials")
-                    try:
-                        client.login()
-                    except Exception:
-                        logger.warning("Credential login also failed")
-                        raise
-            else:
+                    logger.warning("Garth token login failed")
+
+            # 3. Fall back to email/password
+            if not logged_in:
                 client.login()
                 logger.info("Garmin client logged in (credentials)")
 

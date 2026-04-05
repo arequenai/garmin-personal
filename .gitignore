@@ -53,6 +53,7 @@ htmlcov/
 
 # Garmin token cache
 .garmin_tokens
+.garmin_browser_token
 
 # Misc
 *.log
