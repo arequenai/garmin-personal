@@ -720,16 +720,16 @@ def _build_daily_sections(
         net_cal = cal_consumed  # fall back to consumed if no burn data
 
     # Adaptive calorie target (accounts for exercise, yesterday's excess, etc.)
-    adaptive_targets = fetch_and_compute_targets(db, target_date, target_date)
+    # Start from yesterday so the batch seeds carry-over into today's target.
+    adaptive_targets = fetch_and_compute_targets(
+        db, target_date - timedelta(days=1), target_date
+    )
     cal_target = adaptive_targets.get(target_date)
     # Fall back to goal table if adaptive returns nothing
     if cal_target is None:
         cal_target = _goal("calories")
 
-    cal_pct = _pct_toward_goal(
-        float(net_cal) if net_cal is not None else None,
-        float(cal_target) if cal_target is not None else None,
-    )
+    cal_pct = _pct_toward_goal(net_cal, cal_target)
 
     sections.append(
         DailySection(
