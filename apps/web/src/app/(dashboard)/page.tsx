@@ -2,6 +2,7 @@ import { fetchApi } from "@/lib/api";
 import { emptyPlanDailyData, type PlanDailyData } from "@/lib/types";
 import { DailyStrip } from "@/components/plan/daily-strip";
 import { PillarAccordion } from "@/components/plan/pillar-accordion";
+import { SyncStatusBar } from "@/components/plan/sync-status-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,8 @@ export default async function PlanPage() {
           <PillarAccordion pillars={data.pillars} />
         </div>
       </div>
+
+      <SyncStatusBar status={data.sync_status} today={data.date} />
     </div>
   );
 }

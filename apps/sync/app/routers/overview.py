@@ -10,6 +10,7 @@ from app.models.body_composition import BodyComposition
 from app.models.exercise_set import ExerciseSet
 from app.models.glucose_daily import GlucoseDaily
 from app.models.race_prediction import RacePrediction
+from app.models.stress_reading import StressReading
 from app.models.training_readiness import TrainingReadiness
 from app.models.user_goal import UserGoal
 from app.schemas.overview import (
@@ -90,6 +91,35 @@ def _fmt_num(val, decimals: int = 0) -> str:
     if decimals == 0:
         return f"{int(round(val)):,}"
     return f"{val:.{decimals}f}"
+
+
+def _stress_last_1h(db: Session, target_date: date) -> int | None:
+    """Average stress from the last 1 hour of readings for the target date.
+
+    Finds the most recent reading, then averages all readings within 1 hour before it.
+    Excludes negative values (Garmin uses -1/-2 for unmeasured/activity periods).
+    """
+    latest = (
+        db.query(StressReading.timestamp)
+        .filter(StressReading.date == target_date, StressReading.value >= 0)
+        .order_by(StressReading.timestamp.desc())
+        .first()
+    )
+    if not latest:
+        return None
+    cutoff = latest[0] - timedelta(hours=1)
+    rows = (
+        db.query(StressReading.value)
+        .filter(
+            StressReading.date == target_date,
+            StressReading.timestamp > cutoff,
+            StressReading.value >= 0,
+        )
+        .all()
+    )
+    if not rows:
+        return None
+    return round(sum(r[0] for r in rows) / len(rows))
 
 
 def _weekly_running_stats(db: Session, target_date: date) -> tuple[float, float]:
@@ -363,7 +393,7 @@ def _build_strength(
 
 
 def _build_recovery(
-    db: Session, target_date: date, perf, daily, sleep, tr=None
+    db: Session, target_date: date, perf, daily, sleep, tr=None, stress_1h=None
 ) -> OverviewCategoryResponse:
     scores = (perf.category_scores or {}) if perf else {}
     if tr is None:
@@ -382,7 +412,7 @@ def _build_recovery(
     tsb_7ago = _get_value_days_ago(db, PerformanceMetric, "tsb", target_date, 7)
 
     sleep_score = sleep.sleep_score if sleep else None
-    stress_avg = daily.stress_avg if daily else None
+    stress_avg = stress_1h if stress_1h is not None else (daily.stress_avg if daily else None)
     bb_high = daily.body_battery_high if daily else None
 
     return OverviewCategoryResponse(
@@ -418,7 +448,12 @@ def _build_recovery(
         ],
         drivers=[
             Driver(label="Sleep Score", value=_fmt_num(sleep_score), unit="", trend_pct=0),
-            Driver(label="Stress", value=_fmt_num(stress_avg), unit="avg", trend_pct=0),
+            Driver(
+                label="Stress (1h)" if stress_1h is not None else "Stress",
+                value=_fmt_num(stress_avg),
+                unit="avg",
+                trend_pct=0,
+            ),
             Driver(label="Battery", value=_fmt_num(bb_high), unit="%", trend_pct=0),
         ],
     )
@@ -622,6 +657,7 @@ def _build_daily_sections(
     weekly_strength=None,
     glucose=None,
     weekly_running=None,
+    stress_1h=None,
 ) -> list[DailySection]:
     sections = []
 
@@ -715,8 +751,8 @@ def _build_daily_sections(
                     "body_battery",
                 ),
                 _daily_metric(
-                    "Stress",
-                    daily.stress_avg if daily else None,
+                    "Stress (1h)" if stress_1h is not None else "Stress",
+                    stress_1h if stress_1h is not None else (daily.stress_avg if daily else None),
                     "",
                     "stress",
                 ),
@@ -885,12 +921,14 @@ def get_overview(db: Session = Depends(get_db)):
         .all()
     ]
 
+    stress_1h = _stress_last_1h(db, target)
+
     categories = {
         "running": _build_running(db, target, perf, goals, weekly_running),
         "strength": _build_strength(
             db, target, perf, body_comp, strength_act_ids, weekly_strength, nutrition
         ),
-        "recovery": _build_recovery(db, target, perf, daily, sleep, tr),
+        "recovery": _build_recovery(db, target, perf, daily, sleep, tr, stress_1h),
         "sleep": _build_sleep(db, target, perf, sleep, daily),
         "body": _build_body(db, target, perf, body_comp, nutrition),
         "glucose": _build_glucose(glucose),
@@ -910,6 +948,7 @@ def get_overview(db: Session = Depends(get_db)):
         weekly_strength,
         glucose,
         weekly_running,
+        stress_1h,
     )
 
     return OverviewResponse(
