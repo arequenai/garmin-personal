@@ -94,8 +94,8 @@ def test_plan_daily_calories_show_consumed_and_target(client, db):
     data = resp.json()
     cal = next(s for s in data["strip"] if s["label"] == "Calories")
     assert cal["value"] == "1,420"
-    assert cal["target"] == "2,200"
-    assert cal["pct"] == 65  # 1420/2200 ~ 64.5 -> 65
+    assert cal["target"] == "1,500"
+    assert cal["pct"] == 95  # 1420/1500 ~ 94.7 -> 95
 
 
 def test_plan_daily_empty_db(client, db):

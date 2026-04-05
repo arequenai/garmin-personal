@@ -23,8 +23,10 @@ from app.schemas.plan import (
     PillarKPI,
     PlanDailyResponse,
     StripMetric,
+    SyncSourceStatus,
 )
 from app.services.calculations import calculate_stress_last_hour
+from app.services.calorie_target import fetch_and_compute_targets
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
 
@@ -103,10 +105,12 @@ def _build_strip(
     perf: PerformanceMetric | None,
     goals: dict[str, UserGoal],
 ) -> list[StripMetric]:
-    # Calories — prefer MFP daily goal, fall back to user_goals
+    # Calories — use adaptive target, fall back to MFP goal, then user_goals
     cal_val = nutrition.calories if nutrition else None
+    adaptive_targets = fetch_and_compute_targets(db, target_date, target_date)
+    cal_target_adaptive = adaptive_targets.get(target_date)
     cal_goal = nutrition.calories_goal if nutrition and nutrition.calories_goal else None
-    cal_target = cal_goal or _goal_val(goals, "calories")
+    cal_target = cal_target_adaptive or cal_goal or _goal_val(goals, "calories")
 
     # Protein — prefer MFP daily goal, fall back to user_goals
     prot_val = nutrition.protein_g if nutrition else None
@@ -470,21 +474,25 @@ def _build_p5_clinical(db: Session) -> PillarData:
     )
 
 
-def _get_latest_date(db: Session) -> date:
-    latest = db.query(DailySummary).order_by(DailySummary.date.desc()).first()
-    return latest.date if latest else date.today()
+def _latest_or_today(db: Session, model, target: date):
+    """Return today's row if it exists, otherwise the most recent row."""
+    row = db.query(model).filter(model.date == target).first()
+    if row:
+        return row, target
+    row = db.query(model).filter(model.date <= target).order_by(model.date.desc()).first()
+    return row, (row.date if row else None)
 
 
 @router.get("/daily", response_model=PlanDailyResponse)
 def get_plan_daily(db: Session = Depends(get_db)):
-    target = _get_latest_date(db)
+    target = date.today()
 
-    daily = db.query(DailySummary).filter_by(date=target).first()
-    sleep = db.query(SleepSession).filter_by(date=target).first()
-    nutrition = db.query(NutritionDaily).filter_by(date=target).first()
-    perf = db.query(PerformanceMetric).filter_by(date=target).first()
-    body_comp = db.query(BodyComposition).filter_by(date=target).first()
-    tp_fitness = db.query(TPFitnessData).filter_by(date=target).first()
+    daily, daily_date = _latest_or_today(db, DailySummary, target)
+    sleep, sleep_date = _latest_or_today(db, SleepSession, target)
+    nutrition, nutrition_date = _latest_or_today(db, NutritionDaily, target)
+    perf, perf_date = _latest_or_today(db, PerformanceMetric, target)
+    body_comp, body_comp_date = _latest_or_today(db, BodyComposition, target)
+    tp_fitness, tp_fitness_date = _latest_or_today(db, TPFitnessData, target)
 
     all_goals = db.query(UserGoal).all()
     goals = {g.metric_key: g for g in all_goals}
@@ -499,4 +507,11 @@ def get_plan_daily(db: Session = Depends(get_db)):
         _build_p5_clinical(db),
     ]
 
-    return PlanDailyResponse(date=target, strip=strip, pillars=pillars)
+    sync_status = [
+        SyncSourceStatus(source="Garmin", last_date=daily_date, ok=daily_date == target),
+        SyncSourceStatus(source="Sleep", last_date=sleep_date, ok=sleep_date == target),
+        SyncSourceStatus(source="MFP", last_date=nutrition_date, ok=nutrition_date == target),
+        SyncSourceStatus(source="TrainingPeaks", last_date=tp_fitness_date, ok=tp_fitness_date == target),
+    ]
+
+    return PlanDailyResponse(date=target, strip=strip, pillars=pillars, sync_status=sync_status)
