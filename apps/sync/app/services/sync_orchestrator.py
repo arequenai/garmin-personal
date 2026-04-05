@@ -113,13 +113,13 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
             logged_in = False
 
             # 1. Try browser cookies first (bypasses SSO entirely)
-            if _garmin_cookies and not force_new:
+            if _garmin_cookies:
                 try:
                     client.login_with_cookies(_garmin_cookies)
                     logger.info("Garmin client logged in (browser cookies)")
                     logged_in = True
                 except Exception:
-                    logger.warning("Browser cookie login failed")
+                    logger.warning("Browser cookie login failed", exc_info=True)
 
             # 2. Try garth token store
             if not logged_in and _garmin_token_store and not force_new:
@@ -274,7 +274,7 @@ def run_sync_for_date(target_date: date) -> None:
             try:
                 sync.sync_all(target_date)
             except Exception:
-                logger.warning("Sync failed, retrying with fresh Garmin session")
+                logger.exception("Garmin sync_all failed on first attempt")
                 garmin = _get_garmin_client(force_new=True)
                 sync.garmin = garmin
                 sync.sync_all(target_date)
