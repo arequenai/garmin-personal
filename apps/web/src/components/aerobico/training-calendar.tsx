@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CalendarPlannedWorkout, CalendarCompletedWorkout } from "@/lib/types";
 import { useAerobicCalendar } from "@/lib/hooks/use-aerobic-calendar";
+import { toLocalDateStr } from "@/lib/date-utils";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -153,8 +154,8 @@ export function TrainingCalendar({ from, to }: TrainingCalendarProps) {
 
   const calFrom = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
   const calTo = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-  const calFromStr = calFrom.toISOString().split("T")[0];
-  const calToStr = calTo.toISOString().split("T")[0];
+  const calFromStr = toLocalDateStr(calFrom);
+  const calToStr = toLocalDateStr(calTo);
 
   const { data, loading } = useAerobicCalendar(calFromStr, calToStr);
 
@@ -163,7 +164,7 @@ export function TrainingCalendar({ from, to }: TrainingCalendarProps) {
   const firstDay = new Date(year, month, 1);
   const startOffset = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toLocalDateStr(new Date());
 
   const minMonth = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
   const maxMonth = new Date(toDate.getFullYear(), toDate.getMonth(), 1);

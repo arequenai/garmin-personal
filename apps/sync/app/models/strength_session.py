@@ -8,7 +8,10 @@ class StrengthSession(Base):
     __tablename__ = "strength_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    activity_id: Mapped[int] = mapped_column(Integer, ForeignKey("activities.id"), nullable=False)
+    activity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("activities.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
     exercise_name: Mapped[str] = mapped_column(String(255), nullable=False)
     sets: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reps: Mapped[int | None] = mapped_column(Integer, nullable=True)

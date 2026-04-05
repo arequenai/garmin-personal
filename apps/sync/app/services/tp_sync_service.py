@@ -17,7 +17,10 @@ class TPSyncService:
         self.tp = tp_client
 
     def _upsert(self, model_class, unique_field: str, unique_value, values: dict):
-        """Generic upsert: find by unique field, update or create."""
+        """Generic upsert: find by unique field, update or create.
+
+        Flushes but does NOT commit — callers commit after a logical batch.
+        """
         record = (
             self.db.query(model_class)
             .filter(getattr(model_class, unique_field) == unique_value)
@@ -29,8 +32,7 @@ class TPSyncService:
         else:
             record = model_class(**values)
             self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
+        self.db.flush()
         return record
 
     def sync_fitness(self, target_date: date) -> None:
@@ -54,6 +56,7 @@ class TPSyncService:
                 "intensity_factor": entry.get("ifActual"),
             }
             self._upsert(TPFitnessData, "date", entry_date, values)
+        self.db.commit()
 
     @staticmethod
     def _parse_date(raw: str) -> date:
@@ -83,6 +86,7 @@ class TPSyncService:
                 "completed": bool(is_completed),
             }
             self._upsert(TPPlannedWorkout, "tp_workout_id", workout_id, values)
+        self.db.commit()
 
     def sync_completed_workouts(self, target_date: date) -> None:
         """Sync completed workouts for the last 7 days with zone data."""
@@ -122,6 +126,7 @@ class TPSyncService:
                 values.update(self._extract_zones(details))
 
             self._upsert(TPCompletedWorkout, "tp_workout_id", workout_id, values)
+        self.db.commit()
 
     def sync_all(self, target_date: date) -> None:
         """Run all TP sync steps. Each step is isolated so one failure doesn't block others."""

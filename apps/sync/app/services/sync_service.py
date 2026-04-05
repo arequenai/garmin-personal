@@ -56,7 +56,11 @@ class SyncService:
         self.hr_threshold = hr_threshold
 
     def _upsert(self, model_class, unique_field: str, unique_value, values: dict):
-        """Generic upsert: find by unique field, update or create."""
+        """Generic upsert: find by unique field, update or create.
+
+        Flushes but does NOT commit — callers are responsible for committing
+        after a logical batch of upserts.
+        """
         record = (
             self.db.query(model_class)
             .filter(getattr(model_class, unique_field) == unique_value)
@@ -68,8 +72,7 @@ class SyncService:
         else:
             record = model_class(**values)
             self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
+        self.db.flush()
         return record
 
     def sync_daily_summary(
@@ -128,7 +131,9 @@ class SyncService:
             "intensity_minutes_vigorous": intensity_vig,
         }
 
-        return self._upsert(DailySummary, "date", target_date, values)
+        record = self._upsert(DailySummary, "date", target_date, values)
+        self.db.commit()
+        return record
 
     def sync_sleep(self, target_date: date) -> SleepSession | None:
         date_str = target_date.isoformat()
@@ -173,7 +178,9 @@ class SyncService:
             "sleep_score": self._extract_sleep_score(dto),
         }
 
-        return self._upsert(SleepSession, "date", target_date, values)
+        record = self._upsert(SleepSession, "date", target_date, values)
+        self.db.commit()
+        return record
 
     @staticmethod
     def _extract_sleep_score(dto: dict) -> int | None:
@@ -234,6 +241,7 @@ class SyncService:
             if act_type == "strength_training":
                 self.sync_exercise_sets(record)
 
+        self.db.commit()
         return synced
 
     def sync_nutrition(self, target_date: date) -> NutritionDaily | None:
@@ -256,7 +264,9 @@ class SyncService:
             "protein_goal_g": data.get("protein_goal_g"),
             "alcohol_drinks": alcohol_drinks,
         }
-        return self._upsert(NutritionDaily, "date", target_date, values)
+        record = self._upsert(NutritionDaily, "date", target_date, values)
+        self.db.commit()
+        return record
 
     def sync_body_composition(self, target_date: date) -> BodyComposition | None:
         date_str = target_date.isoformat()
@@ -303,7 +313,9 @@ class SyncService:
             if mfp_weight:
                 values["weight_kg"] = mfp_weight
 
-        return self._upsert(BodyComposition, "date", target_date, values)
+        record = self._upsert(BodyComposition, "date", target_date, values)
+        self.db.commit()
+        return record
 
     def sync_race_predictions(self, target_date: date) -> RacePrediction | None:
         date_str = target_date.isoformat()
@@ -346,7 +358,9 @@ class SyncService:
             ),
         }
 
-        return self._upsert(RacePrediction, "date", target_date, values)
+        record = self._upsert(RacePrediction, "date", target_date, values)
+        self.db.commit()
+        return record
 
     def sync_training_readiness(self, target_date: date) -> TrainingReadiness | None:
         date_str = target_date.isoformat()
@@ -373,7 +387,9 @@ class SyncService:
             "recovery_status": data.get("recoveryStatus"),
         }
 
-        return self._upsert(TrainingReadiness, "date", target_date, values)
+        record = self._upsert(TrainingReadiness, "date", target_date, values)
+        self.db.commit()
+        return record
 
     def sync_exercise_sets(self, activity: Activity) -> list[ExerciseSet]:
         """Sync per-set exercise data for a strength activity."""
@@ -451,7 +467,9 @@ class SyncService:
             "latest_glucose": data.get("latest_glucose"),
             "fasting_glucose": data.get("fasting_glucose"),
         }
-        return self._upsert(GlucoseDaily, "date", target_date, values)
+        record = self._upsert(GlucoseDaily, "date", target_date, values)
+        self.db.commit()
+        return record
 
     def sync_stress_readings(self, target_date: date, stress_data: dict | None = None) -> int:
         """Sync raw stress data points into stress_readings table.

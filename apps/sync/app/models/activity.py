@@ -25,5 +25,11 @@ class Activity(Base):
     elevation_gain: Mapped[float | None] = mapped_column(Float, nullable=True)
     tss: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    strength_sets = relationship("StrengthSession", back_populates="activity")
-    exercise_sets = relationship("ExerciseSet", back_populates="activity")
+    strength_sets = relationship(
+        "StrengthSession", back_populates="activity",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    exercise_sets = relationship(
+        "ExerciseSet", back_populates="activity",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )

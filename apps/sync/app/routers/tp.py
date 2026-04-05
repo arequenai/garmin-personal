@@ -164,26 +164,40 @@ def _run_tp_workouts_backfill(days_back: int) -> None:
 
 
 def _run_tp_zones_backfill() -> None:
-    """Re-fetch workout details (HR/power zones) for workouts missing zone data."""
+    """Re-fetch workout details (HR/power zones) for workouts missing zone data.
+
+    Processes in batches of 100 to avoid unbounded memory usage and commits
+    after each batch so progress is not lost on failure.
+    """
+    BATCH_SIZE = 100
     with _tp_session() as tp_sync:
-        missing = (
-            tp_sync.db.query(TPCompletedWorkout)
-            .filter(TPCompletedWorkout.hr_zone1_sec == None)  # noqa: E711
-            .all()
-        )
-        logger.info("Zones backfill: %d workouts missing zone data", len(missing))
-        filled = 0
-        for w in missing:
-            details = tp_sync.tp.get_workout_details(w.tp_workout_id)
-            if not details:
-                continue
-            zones = tp_sync._extract_zones(details)
-            if any(v > 0 for v in zones.values()):
-                for k, v in zones.items():
-                    setattr(w, k, v)
-                filled += 1
-        tp_sync.db.commit()
-        logger.info("Zones backfill completed: %d/%d workouts updated", filled, len(missing))
+        total_filled = 0
+        while True:
+            batch = (
+                tp_sync.db.query(TPCompletedWorkout)
+                .filter(TPCompletedWorkout.hr_zone1_sec == None)  # noqa: E711
+                .limit(BATCH_SIZE)
+                .all()
+            )
+            if not batch:
+                break
+            logger.info("Zones backfill batch: %d workouts", len(batch))
+            filled = 0
+            for w in batch:
+                details = tp_sync.tp.get_workout_details(w.tp_workout_id)
+                if not details:
+                    continue
+                zones = tp_sync._extract_zones(details)
+                if any(v > 0 for v in zones.values()):
+                    for k, v in zones.items():
+                        setattr(w, k, v)
+                    filled += 1
+            tp_sync.db.commit()
+            total_filled += filled
+            logger.info("Zones backfill batch done: %d updated", filled)
+            if len(batch) < BATCH_SIZE:
+                break
+        logger.info("Zones backfill completed: %d total workouts updated", total_filled)
 
 
 @router.post("/sync/zones-backfill")

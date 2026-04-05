@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { NutritionDay, BodyCompositionDay } from "@/lib/types";
+import { toLocalDateStr } from "@/lib/date-utils";
 
 interface SummarySidebarProps {
   nutrition: NutritionDay[];
@@ -21,7 +22,7 @@ function getISOWeekKey(dateStr: string): string {
 }
 
 function getCurrentISOWeekKey(): string {
-  return getISOWeekKey(new Date().toISOString().split("T")[0]);
+  return getISOWeekKey(toLocalDateStr(new Date()));
 }
 
 function alcoholColor(count: number): string {

@@ -61,15 +61,21 @@ export function DailyStrip({ initialStrip }: DailyStripProps) {
   const [strip, setStrip] = useState(initialStrip);
 
   useEffect(() => {
+    const controller = new AbortController();
     const interval = setInterval(async () => {
       try {
-        const data = await fetchApi<PlanDailyData>("/api/plan/daily");
+        const data = await fetchApi<PlanDailyData>("/api/plan/daily", {
+          signal: controller.signal,
+        });
         setStrip(data.strip);
       } catch {
         // Keep showing stale data on fetch failure
       }
     }, 60_000);
-    return () => clearInterval(interval);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, []);
 
   return (

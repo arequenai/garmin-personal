@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { toLocalDateStr } from "@/lib/date-utils";
 import { useNutritionData } from "@/lib/hooks/use-nutrition-data";
 import { useBodyComposition } from "@/lib/hooks/use-body-composition";
+import { ChartErrorBoundary } from "@/components/ui/chart-error-boundary";
 import { CaloriesChart } from "./calories-chart";
 import { MacroStackedChart } from "./macro-stacked-chart";
 import { AlcoholStrip } from "./alcohol-strip";
@@ -14,17 +16,17 @@ import { SummarySidebar } from "./summary-sidebar";
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() - monthsBack);
-  return d.toISOString().split("T")[0];
+  return toLocalDateStr(d);
 }
 
 function defaultFromWeeks(weeksBack: number): string {
   const d = new Date();
   d.setDate(d.getDate() - weeksBack * 7);
-  return d.toISOString().split("T")[0];
+  return toLocalDateStr(d);
 }
 
 function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateStr(new Date());
 }
 
 const PRESETS = [
@@ -134,14 +136,14 @@ export function NutricionPageClient() {
                 <ChartError onRetry={() => setFrom((f) => f)} />
               </div>
             ) : (
-              <>
+              <ChartErrorBoundary>
                 {/* Calories chart — Task 7 */}
                 <CaloriesChart data={nutrition.data!} from={from} to={to} />
                 {/* Macro chart — Task 8 */}
                 <MacroStackedChart data={nutrition.data!} from={from} to={to} />
                 {/* Alcohol strip — Task 9 */}
                 <AlcoholStrip data={nutrition.data!} from={from} to={to} />
-              </>
+              </ChartErrorBoundary>
             )}
 
             {/* Weight/BF chart */}
@@ -152,7 +154,9 @@ export function NutricionPageClient() {
                 <ChartError onRetry={() => setFrom((f) => f)} />
               </div>
             ) : (
-              <WeightBFChart data={bodyComp.data!} from={from} to={to} />
+              <ChartErrorBoundary>
+                <WeightBFChart data={bodyComp.data!} from={from} to={to} />
+              </ChartErrorBoundary>
             )}
           </div>
 

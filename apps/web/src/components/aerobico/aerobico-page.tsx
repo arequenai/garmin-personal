@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { toLocalDateStr } from "@/lib/date-utils";
 import { useAerobicPMC } from "@/lib/hooks/use-aerobic-pmc";
 import { useAerobicVolume } from "@/lib/hooks/use-aerobic-volume";
 import { useAerobicHRZones } from "@/lib/hooks/use-aerobic-hr-zones";
+import { ChartErrorBoundary } from "@/components/ui/chart-error-boundary";
 import { PMCChart } from "./pmc-chart";
 import { TrainingCalendar } from "./training-calendar";
 import { HRZoneChart } from "./hr-zone-chart";
@@ -14,11 +16,11 @@ import { WeeklyVolumeChart } from "./weekly-volume-chart";
 function defaultFrom(monthsBack: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() - monthsBack);
-  return d.toISOString().split("T")[0];
+  return toLocalDateStr(d);
 }
 
 function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateStr(new Date());
 }
 
 const PRESETS = [
@@ -111,7 +113,7 @@ export function AerobicoPageClient() {
             <ChartError onRetry={retryPmc} />
           </div>
         )}
-        {pmc.data && <PMCChart data={pmc.data} />}
+        {pmc.data && <ChartErrorBoundary><PMCChart data={pmc.data} /></ChartErrorBoundary>}
 
         {/* Training Calendar */}
         <div className="mt-4">
@@ -130,7 +132,7 @@ export function AerobicoPageClient() {
               <ChartError onRetry={retryHrZones} />
             </div>
           )}
-          {hrZones.data && <HRZoneChart data={hrZones.data} />}
+          {hrZones.data && <ChartErrorBoundary><HRZoneChart data={hrZones.data} /></ChartErrorBoundary>}
         </div>
 
         {/* Weekly Volume */}
@@ -145,7 +147,7 @@ export function AerobicoPageClient() {
               <ChartError onRetry={retryVolume} />
             </div>
           )}
-          {volume.data && <WeeklyVolumeChart data={volume.data} />}
+          {volume.data && <ChartErrorBoundary><WeeklyVolumeChart data={volume.data} /></ChartErrorBoundary>}
         </div>
       </div>
     </div>

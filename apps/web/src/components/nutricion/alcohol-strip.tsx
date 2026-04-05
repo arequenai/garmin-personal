@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { NutritionDay } from "@/lib/types";
+import { toLocalDateStr } from "@/lib/date-utils";
 
 interface AlcoholStripProps {
   data: NutritionDay[];
@@ -24,7 +25,7 @@ function generateDateRange(from: string, to: string): string[] {
   const d = new Date(from + "T00:00:00");
   const end = new Date(to + "T00:00:00");
   while (d <= end) {
-    dates.push(d.toISOString().split("T")[0]);
+    dates.push(toLocalDateStr(d));
     d.setDate(d.getDate() + 1);
   }
   return dates;

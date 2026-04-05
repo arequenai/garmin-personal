@@ -54,6 +54,11 @@ def _get_value_days_ago(db: Session, model, column, target_date: date, days: int
     return row[0] if row else None
 
 
+def _val(row, attr):
+    """Get attribute from a pre-fetched row, returning None if row is None."""
+    return getattr(row, attr, None) if row else None
+
+
 def _fmt_duration_sec(seconds: int | None) -> str:
     if seconds is None:
         return "--"
@@ -209,10 +214,12 @@ def _pct_toward_goal(
 
 
 def _build_running(
-    db: Session, target_date: date, perf, goals: dict, weekly_running=None
+    db: Session, target_date: date, perf, goals: dict, weekly_running=None,
+    hist=None, prev_weekly_running=None,
 ) -> OverviewCategoryResponse:
+    hist = hist or {}
     race = db.query(RacePrediction).filter_by(date=target_date).first()
-    race_7ago = _get_value_days_ago(db, RacePrediction, "predicted_marathon_sec", target_date, 7)
+    race_7ago = _val(hist.get("race"), "predicted_marathon_sec")
 
     marathon_val = race.predicted_marathon_sec if race else None
     spark = _spark_values(db, RacePrediction, "predicted_marathon_sec", target_date)
@@ -220,18 +227,20 @@ def _build_running(
     if weekly_running is None:
         weekly_running = _weekly_running_stats(db, target_date)
     weekly_km, weekly_elev = weekly_running
-    prev_km, prev_elev = _weekly_running_stats(db, target_date - timedelta(days=7))
+    if prev_weekly_running is None:
+        prev_weekly_running = _weekly_running_stats(db, target_date - timedelta(days=7))
+    prev_km, prev_elev = prev_weekly_running
 
     vo2max = perf.vo2max if perf else None
-    vo2max_7ago = _get_value_days_ago(db, PerformanceMetric, "vo2max", target_date, 7)
+    vo2max_7ago = _val(hist.get("perf"), "vo2max")
 
     ctl = perf.ctl if perf else None
-    ctl_7ago = _get_value_days_ago(db, PerformanceMetric, "ctl", target_date, 7)
+    ctl_7ago = _val(hist.get("perf"), "ctl")
     atl = perf.atl if perf else None
-    atl_7ago = _get_value_days_ago(db, PerformanceMetric, "atl", target_date, 7)
+    atl_7ago = _val(hist.get("perf"), "atl")
 
     pred_5k = race.predicted_5k_sec if race else None
-    pred_5k_7ago = _get_value_days_ago(db, RacePrediction, "predicted_5k_sec", target_date, 7)
+    pred_5k_7ago = _val(hist.get("race"), "predicted_5k_sec")
 
     # Category score from perf
     scores = (perf.category_scores or {}) if perf else {}
@@ -298,11 +307,14 @@ def _build_strength(
     strength_act_ids=None,
     weekly_strength=None,
     nutrition=None,
+    hist=None,
+    prev_weekly_strength=None,
 ) -> OverviewCategoryResponse:
+    hist = hist or {}
     scores = (perf.category_scores or {}) if perf else {}
 
     muscle = body_comp.muscle_mass_kg if body_comp else None
-    muscle_7ago = _get_value_days_ago(db, BodyComposition, "muscle_mass_kg", target_date, 7)
+    muscle_7ago = _val(hist.get("body"), "muscle_mass_kg")
     spark = _spark_values(db, BodyComposition, "muscle_mass_kg", target_date)
 
     # Use pre-fetched strength activity IDs or query
@@ -324,13 +336,15 @@ def _build_strength(
     if weekly_strength is None:
         weekly_strength = _weekly_strength_stats(db, target_date)
     str_count, str_hours = weekly_strength
-    prev_count, prev_hours = _weekly_strength_stats(db, target_date - timedelta(days=7))
+    if prev_weekly_strength is None:
+        prev_weekly_strength = _weekly_strength_stats(db, target_date - timedelta(days=7))
+    prev_count, prev_hours = prev_weekly_strength
 
     # Get today's protein from nutrition (use pre-fetched if available)
     if nutrition is None:
         nutrition = db.query(NutritionDaily).filter_by(date=target_date).first()
     protein = nutrition.protein_g if nutrition else None
-    protein_7ago = _get_value_days_ago(db, NutritionDaily, "protein_g", target_date, 7)
+    protein_7ago = _val(hist.get("nutr"), "protein_g")
 
     kpis = []
     if "bench" in top_1rms:
@@ -393,23 +407,25 @@ def _build_strength(
 
 
 def _build_recovery(
-    db: Session, target_date: date, perf, daily, sleep, tr=None, stress_1h=None
+    db: Session, target_date: date, perf, daily, sleep, tr=None, stress_1h=None,
+    hist=None,
 ) -> OverviewCategoryResponse:
+    hist = hist or {}
     scores = (perf.category_scores or {}) if perf else {}
     if tr is None:
         tr = db.query(TrainingReadiness).filter_by(date=target_date).first()
     tr_score = tr.score if tr else None
-    tr_7ago = _get_value_days_ago(db, TrainingReadiness, "score", target_date, 7)
+    tr_7ago = _val(hist.get("tr"), "score")
     spark = _spark_values(db, TrainingReadiness, "score", target_date)
 
     rhr = daily.resting_hr if daily else None
-    rhr_7ago = _get_value_days_ago(db, DailySummary, "resting_hr", target_date, 7)
+    rhr_7ago = _val(hist.get("daily"), "resting_hr")
 
     hrv = sleep.avg_hrv if sleep else None
-    hrv_7ago = _get_value_days_ago(db, SleepSession, "avg_hrv", target_date, 7)
+    hrv_7ago = _val(hist.get("sleep"), "avg_hrv")
 
     tsb = perf.tsb if perf else None
-    tsb_7ago = _get_value_days_ago(db, PerformanceMetric, "tsb", target_date, 7)
+    tsb_7ago = _val(hist.get("perf"), "tsb")
 
     sleep_score = sleep.sleep_score if sleep else None
     stress_avg = stress_1h if stress_1h is not None else (daily.stress_avg if daily else None)
@@ -459,11 +475,14 @@ def _build_recovery(
     )
 
 
-def _build_sleep(db: Session, target_date: date, perf, sleep, daily) -> OverviewCategoryResponse:
+def _build_sleep(
+    db: Session, target_date: date, perf, sleep, daily, hist=None,
+) -> OverviewCategoryResponse:
+    hist = hist or {}
     scores = (perf.category_scores or {}) if perf else {}
 
     sleep_score = sleep.sleep_score if sleep else None
-    sleep_score_7ago = _get_value_days_ago(db, SleepSession, "sleep_score", target_date, 7)
+    sleep_score_7ago = _val(hist.get("sleep"), "sleep_score")
     spark = _spark_values(db, SleepSession, "sleep_score", target_date)
 
     total_min = sleep.total_sleep_min if sleep else None
@@ -524,12 +543,13 @@ def _build_sleep(db: Session, target_date: date, perf, sleep, daily) -> Overview
 
 
 def _build_body(
-    db: Session, target_date: date, perf, body_comp, nutrition
+    db: Session, target_date: date, perf, body_comp, nutrition, hist=None,
 ) -> OverviewCategoryResponse:
+    hist = hist or {}
     scores = (perf.category_scores or {}) if perf else {}
 
     bf = body_comp.body_fat_pct if body_comp else None
-    bf_7ago = _get_value_days_ago(db, BodyComposition, "body_fat_pct", target_date, 7)
+    bf_7ago = _val(hist.get("body"), "body_fat_pct")
     spark = _spark_values(db, BodyComposition, "body_fat_pct", target_date)
 
     weight = body_comp.weight_kg if body_comp else None
@@ -923,14 +943,32 @@ def get_overview(db: Session = Depends(get_db)):
 
     stress_1h = _stress_last_1h(db, target)
 
+    # Pre-fetch 7-day-ago rows to eliminate per-column queries (13 queries → 7)
+    past = target - timedelta(days=7)
+    hist = {
+        "perf": db.query(PerformanceMetric).filter_by(date=past).first(),
+        "race": db.query(RacePrediction).filter_by(date=past).first(),
+        "body": db.query(BodyComposition).filter_by(date=past).first(),
+        "sleep": db.query(SleepSession).filter_by(date=past).first(),
+        "daily": db.query(DailySummary).filter_by(date=past).first(),
+        "nutr": db.query(NutritionDaily).filter_by(date=past).first(),
+        "tr": db.query(TrainingReadiness).filter_by(date=past).first(),
+    }
+    # Pre-compute previous-week stats (avoids redundant recomputation in builders)
+    prev_weekly_running = _weekly_running_stats(db, past)
+    prev_weekly_strength = _weekly_strength_stats(db, past)
+
     categories = {
-        "running": _build_running(db, target, perf, goals, weekly_running),
-        "strength": _build_strength(
-            db, target, perf, body_comp, strength_act_ids, weekly_strength, nutrition
+        "running": _build_running(
+            db, target, perf, goals, weekly_running, hist, prev_weekly_running
         ),
-        "recovery": _build_recovery(db, target, perf, daily, sleep, tr, stress_1h),
-        "sleep": _build_sleep(db, target, perf, sleep, daily),
-        "body": _build_body(db, target, perf, body_comp, nutrition),
+        "strength": _build_strength(
+            db, target, perf, body_comp, strength_act_ids, weekly_strength, nutrition,
+            hist, prev_weekly_strength,
+        ),
+        "recovery": _build_recovery(db, target, perf, daily, sleep, tr, stress_1h, hist),
+        "sleep": _build_sleep(db, target, perf, sleep, daily, hist),
+        "body": _build_body(db, target, perf, body_comp, nutrition, hist),
         "glucose": _build_glucose(glucose),
     }
 

@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks
 
@@ -8,6 +8,26 @@ from app.services.sync_orchestrator import run_sync_for_date
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
+# In-memory tracker for background sync status
+_sync_state: dict = {"status": "idle", "started_at": None, "finished_at": None, "error": None}
+
+
+def _tracked_sync(target: date) -> None:
+    """Wrapper that updates _sync_state around the actual sync."""
+    _sync_state.update(status="running", started_at=datetime.now().isoformat(), error=None)
+    try:
+        run_sync_for_date(target)
+        _sync_state.update(status="ok", finished_at=datetime.now().isoformat())
+    except Exception as exc:
+        _sync_state.update(status="error", finished_at=datetime.now().isoformat(), error=str(exc))
+        raise
+
+
+@router.get("/status")
+def sync_status():
+    """Return the current state of the most recent background sync."""
+    return _sync_state
+
 
 @router.post("/trigger")
 def trigger_sync(
@@ -15,7 +35,7 @@ def trigger_sync(
     days_back: int = 1,
 ):
     target = date.today() - timedelta(days=days_back)
-    background_tasks.add_task(run_sync_for_date, target)
+    background_tasks.add_task(_tracked_sync, target)
     return {"status": "sync_started", "target_date": target.isoformat()}
 
 

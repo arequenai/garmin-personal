@@ -1,3 +1,5 @@
+import { toLocalDateStr } from "./date-utils";
+
 // ── Plan dashboard types ──
 
 export interface StripMetric {
@@ -49,7 +51,7 @@ export interface PlanDailyData {
 
 export function emptyPlanDailyData(): PlanDailyData {
   return {
-    date: new Date().toISOString().split("T")[0],
+    date: toLocalDateStr(new Date()),
     strip: [],
     pillars: [],
     sync_status: [],
