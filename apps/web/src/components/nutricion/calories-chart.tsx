@@ -41,7 +41,7 @@ export function CaloriesChart({ data, from, to }: CaloriesChartProps) {
   const chartRef = useRef<IChartApi | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || data.length === 0) return;
+    if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
       ...BASE_CHART_OPTIONS,
@@ -131,11 +131,7 @@ export function CaloriesChart({ data, from, to }: CaloriesChartProps) {
           bars · target (orange) · 7d avg (blue)
         </span>
       </h2>
-      {data.length === 0 ? (
-        <div className="py-8 text-center text-xs text-whoop-text-muted">No calorie data</div>
-      ) : (
-        <div ref={containerRef} />
-      )}
+      <div ref={containerRef} />
     </div>
   );
 }

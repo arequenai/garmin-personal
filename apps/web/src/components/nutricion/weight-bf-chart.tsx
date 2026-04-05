@@ -20,7 +20,7 @@ export function WeightBFChart({ data, from, to }: WeightBFChartProps) {
   const chartRef = useRef<IChartApi | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || data.length === 0) return;
+    if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
       ...BASE_CHART_OPTIONS,
@@ -91,11 +91,7 @@ export function WeightBFChart({ data, from, to }: WeightBFChartProps) {
           weight (blue) · body fat (orange)
         </span>
       </h2>
-      {data.length === 0 ? (
-        <div className="py-8 text-center text-xs text-whoop-text-muted">No body composition data</div>
-      ) : (
-        <div ref={containerRef} />
-      )}
+      <div ref={containerRef} />
     </div>
   );
 }
