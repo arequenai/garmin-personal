@@ -7,12 +7,21 @@ from garminconnect import Garmin
 
 def _cookie_request(garth_client, cookie_str, method, subdomain, path, /, api=False,
                     referrer=False, headers={}, **kwargs):
-    """Replacement for garth.Client.request that uses cookies instead of OAuth."""
-    url = f"https://{subdomain}.{garth_client.domain}"
-    url = urljoin(url, path)
+    """Replacement for garth.Client.request that uses cookies instead of OAuth.
+
+    Routes API calls through connect.garmin.com/proxy/ (cookie-authenticated)
+    instead of connectapi.garmin.com (which requires Bearer tokens).
+    """
+    if subdomain == "connectapi":
+        # Browser uses connect.garmin.com/proxy/ for cookie-based API access
+        url = f"https://connect.{garth_client.domain}/proxy/{path.lstrip('/')}"
+    else:
+        url = f"https://{subdomain}.{garth_client.domain}"
+        url = urljoin(url, path)
     if referrer is True and garth_client.last_resp:
         headers["referer"] = garth_client.last_resp.url
     headers["Cookie"] = cookie_str
+    headers["NK"] = "NT"  # required header for Garmin proxy
     garth_client.last_resp = garth_client.sess.request(
         method, url, headers=headers, timeout=garth_client.timeout, **kwargs,
     )
