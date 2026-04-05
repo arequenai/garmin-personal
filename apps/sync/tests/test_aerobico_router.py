@@ -187,3 +187,63 @@ def test_hr_zones_handles_null_values(client, db):
     assert data["zone1_sec"] == 600
     assert data["zone2_sec"] == 0
     assert data["zone3_sec"] == 900
+
+
+def test_workout_detail_completed(client, db):
+    db.add(TPCompletedWorkout(
+        tp_workout_id="c-100", date=date(2026, 4, 3),
+        title="Tempo Run", workout_type="Run",
+        tss=85, distance_m=12000, duration_sec=4200,
+        avg_hr=155, max_hr=172, intensity_factor=0.78,
+        calories=800,
+    ))
+    db.commit()
+    resp = client.get("/api/aerobico/workout/c-100")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["workout"]["tp_workout_id"] == "c-100"
+    assert data["workout"]["title"] == "Tempo Run"
+    assert data["planned"] is None
+
+
+def test_workout_detail_completed_with_planned_match(client, db):
+    db.add(TPPlannedWorkout(
+        tp_workout_id="p-100", date=date(2026, 4, 3),
+        title="Tempo Run", workout_type="Run",
+        duration_sec_planned=4000, distance_m_planned=11000, tss_planned=80,
+        description="Run at tempo pace",
+    ))
+    db.add(TPCompletedWorkout(
+        tp_workout_id="c-100", date=date(2026, 4, 3),
+        title="Tempo Run", workout_type="Run",
+        tss=85, distance_m=12000, duration_sec=4200,
+    ))
+    db.commit()
+    resp = client.get("/api/aerobico/workout/c-100")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["workout"]["tp_workout_id"] == "c-100"
+    assert data["planned"] is not None
+    assert data["planned"]["tp_workout_id"] == "p-100"
+    assert data["planned"]["tss_planned"] == 80
+
+
+def test_workout_detail_planned(client, db):
+    db.add(TPPlannedWorkout(
+        tp_workout_id="p-200", date=date(2026, 4, 10),
+        title="Easy Run", workout_type="Run",
+        duration_sec_planned=3600, tss_planned=40, distance_m_planned=10000,
+        description="Easy recovery run",
+    ))
+    db.commit()
+    resp = client.get("/api/aerobico/workout/p-200?type=planned")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["workout"]["tp_workout_id"] == "p-200"
+    assert data["workout"]["description"] == "Easy recovery run"
+    assert data["completed"] is None
+
+
+def test_workout_detail_not_found(client, db):
+    resp = client.get("/api/aerobico/workout/nonexistent")
+    assert resp.status_code == 404

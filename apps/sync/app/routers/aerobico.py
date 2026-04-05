@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.constants import RUNNING_TYPES
@@ -11,9 +11,12 @@ from app.models.tp_fitness_data import TPFitnessData
 from app.models.tp_planned_workout import TPPlannedWorkout
 from app.schemas.aerobico import (
     CalendarResponse,
+    CompletedWorkoutDetail,
+    PlannedWorkoutDetail,
     PMCDataPoint,
     WeeklyHRZones,
     WeeklyVolume,
+    WorkoutWithPlannedResponse,
 )
 
 router = APIRouter(prefix="/api/aerobico", tags=["aerobico"])
@@ -170,3 +173,60 @@ def get_hr_zones(
         WeeklyHRZones(week_start=ws, **vals)
         for ws, vals in sorted(weeks.items())
     ]
+
+
+@router.get("/workout/{tp_workout_id}", response_model=WorkoutWithPlannedResponse)
+def get_workout_detail(
+    tp_workout_id: str,
+    type: str = Query(default="completed"),
+    db: Session = Depends(get_db),
+):
+    if type == "planned":
+        workout = (
+            db.query(TPPlannedWorkout)
+            .filter(TPPlannedWorkout.tp_workout_id == tp_workout_id)
+            .first()
+        )
+        if not workout:
+            raise HTTPException(status_code=404, detail="Workout not found")
+
+        completed = None
+        if workout.title:
+            completed = (
+                db.query(TPCompletedWorkout)
+                .filter(
+                    TPCompletedWorkout.date == workout.date,
+                    TPCompletedWorkout.title.ilike(workout.title),
+                )
+                .first()
+            )
+
+        return WorkoutWithPlannedResponse(
+            workout=PlannedWorkoutDetail.model_validate(workout),
+            completed=CompletedWorkoutDetail.model_validate(completed) if completed else None,
+        )
+
+    # Default: completed
+    workout = (
+        db.query(TPCompletedWorkout)
+        .filter(TPCompletedWorkout.tp_workout_id == tp_workout_id)
+        .first()
+    )
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    planned = None
+    if workout.title:
+        planned = (
+            db.query(TPPlannedWorkout)
+            .filter(
+                TPPlannedWorkout.date == workout.date,
+                TPPlannedWorkout.title.ilike(workout.title),
+            )
+            .first()
+        )
+
+    return WorkoutWithPlannedResponse(
+        workout=CompletedWorkoutDetail.model_validate(workout),
+        planned=PlannedWorkoutDetail.model_validate(planned) if planned else None,
+    )

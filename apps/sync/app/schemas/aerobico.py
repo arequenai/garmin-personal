@@ -57,3 +57,43 @@ class WeeklyHRZones(BaseModel):
     zone3_sec: int
     zone4_sec: int
     zone5_sec: int
+
+
+class CompletedWorkoutDetail(BaseModel):
+    tp_workout_id: str
+    date: date
+    title: str | None
+    workout_type: str | None
+    description: str | None
+    duration_sec: int | None
+    distance_m: float | None
+    tss: float | None
+    intensity_factor: float | None
+    avg_hr: int | None
+    max_hr: int | None
+    avg_power: float | None
+    calories: int | None
+    elevation_gain_m: float | None
+    workout_details_json: dict | None
+
+    model_config = {"from_attributes": True}
+
+
+class PlannedWorkoutDetail(BaseModel):
+    tp_workout_id: str
+    date: date
+    title: str | None
+    workout_type: str | None
+    description: str | None
+    duration_sec_planned: int | None
+    distance_m_planned: float | None
+    tss_planned: float | None
+    structure_json: dict | None
+
+    model_config = {"from_attributes": True}
+
+
+class WorkoutWithPlannedResponse(BaseModel):
+    workout: CompletedWorkoutDetail | PlannedWorkoutDetail
+    planned: PlannedWorkoutDetail | None = None
+    completed: CompletedWorkoutDetail | None = None
