@@ -22,6 +22,7 @@ from app.schemas.overview import (
     OverviewCategoryResponse,
     OverviewResponse,
 )
+from app.services.calorie_target import fetch_and_compute_targets
 
 router = APIRouter(prefix="/api/overview", tags=["overview"])
 
@@ -718,6 +719,18 @@ def _build_daily_sections(
     else:
         net_cal = cal_consumed  # fall back to consumed if no burn data
 
+    # Adaptive calorie target (accounts for exercise, yesterday's excess, etc.)
+    adaptive_targets = fetch_and_compute_targets(db, target_date, target_date)
+    cal_target = adaptive_targets.get(target_date)
+    # Fall back to goal table if adaptive returns nothing
+    if cal_target is None:
+        cal_target = _goal("calories")
+
+    cal_pct = _pct_toward_goal(
+        float(net_cal) if net_cal is not None else None,
+        float(cal_target) if cal_target is not None else None,
+    )
+
     sections.append(
         DailySection(
             id="nutrition",
@@ -725,11 +738,12 @@ def _build_daily_sections(
             icon="\U0001f37d\ufe0f",
             color="whoop-green",
             metrics=[
-                _daily_metric(
-                    "Net Cal",
-                    net_cal,
-                    "kcal",
-                    "calories",
+                DailyMetric(
+                    label="Net Cal",
+                    value=_fmt_num(net_cal),
+                    unit="kcal",
+                    target=_fmt_num(cal_target) if cal_target else "--",
+                    pct=cal_pct,
                 ),
                 _daily_metric(
                     "Weight",
