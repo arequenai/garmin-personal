@@ -15,5 +15,6 @@ class NutritionResponse(BaseModel):
     calories_goal: int | None = None
     protein_goal_g: float | None = None
     alcohol_drinks: int | None = None
+    calories_target_adaptive: int | None = None
 
     model_config = {"from_attributes": True}
