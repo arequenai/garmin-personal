@@ -74,10 +74,24 @@ class FitbitClient:
         data = self._get(f"/1/user/-/body/log/weight/date/{date_str}.json")
         return data.get("weight", [])
 
+    def get_weight_range(self, start: date, end: date) -> list[dict]:
+        """Get weight logs for a date range (max 31 days)."""
+        data = self._get(
+            f"/1/user/-/body/log/weight/date/{start.isoformat()}/{end.isoformat()}.json"
+        )
+        return data.get("weight", [])
+
     def get_body_fat(self, target_date: date) -> list[dict]:
         """Get body fat logs for a date. Returns list of fat entries."""
         date_str = target_date.isoformat()
         data = self._get(f"/1/user/-/body/log/fat/date/{date_str}.json")
+        return data.get("fat", [])
+
+    def get_body_fat_range(self, start: date, end: date) -> list[dict]:
+        """Get body fat logs for a date range (max 31 days)."""
+        data = self._get(
+            f"/1/user/-/body/log/fat/date/{start.isoformat()}/{end.isoformat()}.json"
+        )
         return data.get("fat", [])
 
     @staticmethod
