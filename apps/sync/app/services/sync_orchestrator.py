@@ -213,7 +213,12 @@ def run_sync_for_date(target_date: date) -> None:
 
 
 def run_frequent_sync() -> None:
-    """Lightweight sync for intraday data: nutrition (MFP) + stress readings."""
+    """Lightweight sync for intraday data: nutrition (MFP) only.
+
+    Garmin data (including stress readings) is synced once daily via
+    run_sync_for_date() at 5 AM to avoid 429 rate-limiting from repeated
+    Garmin auth calls every 15 minutes.
+    """
     db = SessionLocal()
     try:
         today = date.today()
@@ -235,20 +240,5 @@ def run_frequent_sync() -> None:
                 logger.info("Frequent sync: nutrition completed for %s", today)
             except Exception:
                 logger.exception("Frequent sync: nutrition failed")
-
-        # --- Garmin stress readings ---
-        try:
-            garmin = _get_garmin_client()
-            sync = SyncService(db=db, garmin=garmin)
-            try:
-                sync.sync_stress_readings(today)
-            except Exception:
-                logger.warning("Stress sync failed, retrying with fresh Garmin session")
-                garmin = _get_garmin_client(force_new=True)
-                sync.garmin = garmin
-                sync.sync_stress_readings(today)
-            logger.info("Frequent sync: stress readings completed for %s", today)
-        except Exception:
-            logger.exception("Frequent sync: Garmin stress readings failed")
     finally:
         db.close()
