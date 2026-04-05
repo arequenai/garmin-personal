@@ -12,7 +12,10 @@ class GarminClient:
         self._client.login(tokenstore=tokenstore)
 
     def dump_tokens(self) -> str | None:
-        """Serialize garth session tokens to a base64 string."""
+        """Serialize garth session tokens to a base64 string.
+
+        Returns None if the client has not yet successfully logged in.
+        """
         if self._client and self._client.garth:
             return self._client.garth.dumps()
         return None

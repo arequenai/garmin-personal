@@ -43,7 +43,11 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
                     logger.info("Garmin client logged in (cached tokens)")
                 except Exception:
                     logger.warning("Token login failed, falling back to credentials")
-                    client.login()
+                    try:
+                        client.login()
+                    except Exception:
+                        logger.warning("Credential login also failed")
+                        raise
             else:
                 client.login()
                 logger.info("Garmin client logged in (credentials)")

@@ -19,6 +19,31 @@ def test_login_calls_garmin_connect(mock_garmin_cls):
 
 
 @patch("app.services.garmin_client.Garmin")
+def test_login_passes_tokenstore(mock_garmin_cls):
+    mock_instance = MagicMock()
+    mock_garmin_cls.return_value = mock_instance
+    client = GarminClient(email="t@t.com", password="p")
+    client.login(tokenstore="base64data")
+    mock_instance.login.assert_called_once_with(tokenstore="base64data")
+
+
+@patch("app.services.garmin_client.Garmin")
+def test_dump_tokens_returns_none_before_login(mock_garmin_cls):
+    client = GarminClient(email="t@t.com", password="p")
+    assert client.dump_tokens() is None
+
+
+@patch("app.services.garmin_client.Garmin")
+def test_dump_tokens_calls_garth_dumps(mock_garmin_cls):
+    mock_instance = MagicMock()
+    mock_instance.garth.dumps.return_value = "encoded"
+    mock_garmin_cls.return_value = mock_instance
+    client = GarminClient(email="t@t.com", password="p")
+    client.login()
+    assert client.dump_tokens() == "encoded"
+
+
+@patch("app.services.garmin_client.Garmin")
 def test_get_daily_summary(mock_garmin_cls):
     mock_instance = MagicMock()
     mock_instance.get_stats.return_value = {"totalSteps": 10000}
