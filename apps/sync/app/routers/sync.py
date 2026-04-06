@@ -1,10 +1,16 @@
 import logging
+import traceback
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from app.services.sync_orchestrator import run_sync_for_date, set_garmin_cookies, set_garmin_tokens
+from app.services.sync_orchestrator import (
+    _get_garmin_client,
+    run_sync_for_date,
+    set_garmin_cookies,
+    set_garmin_tokens,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync", tags=["sync"])
@@ -36,10 +42,7 @@ class GarminTokensPayload(BaseModel):
 
 @router.post("/garmin-tokens")
 def upload_garmin_tokens(payload: GarminTokensPayload):
-    """Accept base64 garth tokens to bypass email/password login.
-
-    Generate tokens locally with: python -m app.scripts.garmin_export_tokens
-    """
+    """Accept DI tokens JSON to bypass email/password login."""
     set_garmin_tokens(payload.tokens)
     return {"status": "tokens_saved"}
 
@@ -50,12 +53,30 @@ class CookiePayload(BaseModel):
 
 @router.post("/garmin-cookies")
 def upload_garmin_cookies(payload: CookiePayload):
-    """Accept raw browser cookies from Chrome DevTools.
-
-    Copy from Chrome: F12 → Network → any request → Request Headers → Cookie value
-    """
+    """Deprecated: cookie-based auth no longer works with Garmin's new API."""
     set_garmin_cookies(payload.cookies)
-    return {"status": "cookies_saved"}
+    return {"status": "cookies_saved", "warning": "cookie auth is deprecated"}
+
+
+@router.get("/test-garmin")
+def test_garmin_connection():
+    """Test whether the Garmin client can authenticate and fetch data."""
+    yesterday = date.today() - timedelta(days=1)
+    try:
+        client = _get_garmin_client(force_new=True)
+        stats = client.get_daily_summary(yesterday.isoformat())
+        return {
+            "status": "ok",
+            "date_tested": yesterday.isoformat(),
+            "has_data": bool(stats),
+            "sample_keys": list(stats.keys())[:10] if isinstance(stats, dict) else str(type(stats)),
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "error": str(exc),
+            "traceback": traceback.format_exc(),
+        }
 
 
 @router.post("/trigger")

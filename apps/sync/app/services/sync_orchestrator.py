@@ -20,16 +20,14 @@ logger = logging.getLogger(__name__)
 # Cached Garmin client — avoids a fresh login() on every sync invocation.
 _garmin_client: GarminClient | None = None
 _garmin_token_store: str | None = None
-_garmin_cookies: str | None = None  # raw browser cookie string
 _garmin_login_failed_at: float = 0  # timestamp of last login failure
 _GARMIN_COOLDOWN_SEC = 21600  # 6 hour cooldown after a login failure
 
 _TOKEN_FILE = Path(__file__).resolve().parent.parent.parent / ".garmin_tokens"
-_COOKIE_FILE = Path(__file__).resolve().parent.parent.parent / ".garmin_cookies"
 
 
 def _load_token_store() -> str | None:
-    """Load garth tokens from env var or disk file."""
+    """Load tokens from env var or disk file."""
     if settings.garmin_token_store:
         return settings.garmin_token_store
     if _TOKEN_FILE.exists():
@@ -42,20 +40,8 @@ def _load_token_store() -> str | None:
     return None
 
 
-def _load_cookies() -> str | None:
-    """Load browser cookies from disk."""
-    if _COOKIE_FILE.exists():
-        try:
-            data = _COOKIE_FILE.read_text().strip()
-            if data:
-                return data
-        except Exception:
-            logger.warning("Failed to read cookie file")
-    return None
-
-
 def _save_token_store(tokens: str) -> None:
-    """Persist garth tokens to disk for surviving restarts."""
+    """Persist tokens to disk for surviving restarts."""
     try:
         _TOKEN_FILE.write_text(tokens)
         logger.info("Garmin tokens persisted to %s", _TOKEN_FILE)
@@ -64,7 +50,7 @@ def _save_token_store(tokens: str) -> None:
 
 
 def set_garmin_tokens(tokens: str) -> None:
-    """Accept externally-provided garth tokens (e.g. from API upload)."""
+    """Accept externally-provided tokens (e.g. from API upload)."""
     global _garmin_client, _garmin_token_store, _garmin_login_failed_at
     _garmin_token_store = tokens
     _garmin_client = None
@@ -72,28 +58,20 @@ def set_garmin_tokens(tokens: str) -> None:
     _save_token_store(tokens)
 
 
+# Keep for backward compat with the API endpoint, but now a no-op
 def set_garmin_cookies(cookie_str: str) -> None:
-    """Accept browser cookies from Chrome DevTools."""
-    global _garmin_client, _garmin_cookies, _garmin_login_failed_at
-    _garmin_cookies = cookie_str
-    _garmin_client = None
-    _garmin_login_failed_at = 0
-    try:
-        _COOKIE_FILE.write_text(cookie_str)
-        logger.info("Garmin cookies saved to %s", _COOKIE_FILE)
-    except Exception:
-        logger.warning("Failed to write cookie file")
+    """Deprecated: cookie-based auth no longer works with Garmin's new API."""
+    logger.warning("set_garmin_cookies called but cookie auth is no longer supported")
 
 
 def _get_garmin_client(force_new: bool = False) -> GarminClient:
     """Return a cached GarminClient, creating one only on first call or after auth failure.
 
     Tries authentication in order:
-    1. Browser cookies (from Chrome DevTools upload)
-    2. Garth token store (persisted from previous successful login)
-    3. Email/password login (most likely to be rate-limited)
+    1. Persisted token store (DI tokens from previous successful login)
+    2. Email/password login via garminconnect v0.3+ (uses curl-cffi for TLS fingerprinting)
     """
-    global _garmin_client, _garmin_token_store, _garmin_cookies, _garmin_login_failed_at
+    global _garmin_client, _garmin_token_store, _garmin_login_failed_at
 
     if _garmin_login_failed_at and time.time() - _garmin_login_failed_at < _GARMIN_COOLDOWN_SEC:
         raise ConnectionError("Garmin login on cooldown after recent failure")
@@ -101,8 +79,6 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
     # Load persisted tokens on first call
     if _garmin_token_store is None:
         _garmin_token_store = _load_token_store()
-    if _garmin_cookies is None:
-        _garmin_cookies = _load_cookies()
 
     if _garmin_client is None or force_new:
         try:
@@ -112,25 +88,16 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
 
             logged_in = False
 
-            # 1. Try browser cookies first (bypasses SSO entirely)
-            if _garmin_cookies:
-                try:
-                    client.login_with_cookies(_garmin_cookies)
-                    logger.info("Garmin client logged in (browser cookies)")
-                    logged_in = True
-                except Exception:
-                    logger.warning("Browser cookie login failed", exc_info=True)
-
-            # 2. Try garth token store
-            if not logged_in and _garmin_token_store and not force_new:
+            # 1. Try persisted token store
+            if _garmin_token_store and not force_new:
                 try:
                     client.login(tokenstore=_garmin_token_store)
                     logger.info("Garmin client logged in (cached tokens)")
                     logged_in = True
                 except Exception:
-                    logger.warning("Garth token login failed")
+                    logger.warning("Token store login failed, will try credentials")
 
-            # 3. Fall back to email/password
+            # 2. Fall back to email/password
             if not logged_in:
                 client.login()
                 logger.info("Garmin client logged in (credentials)")

@@ -1,4 +1,4 @@
-"""Log in to Garmin interactively and print base64 garth tokens.
+"""Log in to Garmin interactively and print DI tokens JSON.
 
 Run locally (where Garmin isn't blocking you), then upload to production:
 
@@ -12,7 +12,6 @@ Run locally (where Garmin isn't blocking you), then upload to production:
 """
 
 import os
-import sys
 
 from garminconnect import Garmin
 
@@ -25,7 +24,7 @@ def main():
     print("Logging in to Garmin Connect...")
     client.login()
 
-    tokens = client.garth.dumps()
+    tokens = client.client.dumps()
     print("\n--- Copy everything below this line ---")
     print(tokens)
     print("--- Copy everything above this line ---")

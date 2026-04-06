@@ -8,7 +8,7 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "alembic>=1.14.0",
     "psycopg2-binary>=2.9.0",
-    "garminconnect>=0.2.0",
+    "garminconnect==0.3.1",
     "apscheduler>=3.10.0",
     "numpy>=2.0.0",
     "pydantic-settings>=2.0.0",

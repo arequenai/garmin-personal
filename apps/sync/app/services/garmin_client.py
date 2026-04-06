@@ -1,32 +1,4 @@
-import time
-from functools import partial
-from urllib.parse import urljoin
-
 from garminconnect import Garmin
-
-
-def _cookie_request(garth_client, cookie_str, method, subdomain, path, /, api=False,
-                    referrer=False, headers={}, **kwargs):
-    """Replacement for garth.Client.request that uses cookies instead of OAuth.
-
-    Routes API calls through connect.garmin.com/proxy/ (cookie-authenticated)
-    instead of connectapi.garmin.com (which requires Bearer tokens).
-    """
-    if subdomain == "connectapi":
-        # Browser uses connect.garmin.com/proxy/ for cookie-based API access
-        url = f"https://connect.{garth_client.domain}/proxy/{path.lstrip('/')}"
-    else:
-        url = f"https://{subdomain}.{garth_client.domain}"
-        url = urljoin(url, path)
-    if referrer is True and garth_client.last_resp:
-        headers["referer"] = garth_client.last_resp.url
-    headers["Cookie"] = cookie_str
-    headers["NK"] = "NT"  # required header for Garmin proxy
-    garth_client.last_resp = garth_client.sess.request(
-        method, url, headers=headers, timeout=garth_client.timeout, **kwargs,
-    )
-    garth_client.last_resp.raise_for_status()
-    return garth_client.last_resp
 
 
 class GarminClient:
@@ -39,25 +11,14 @@ class GarminClient:
         self._client = Garmin(self.email, self.password)
         self._client.login(tokenstore=tokenstore)
 
-    def login_with_cookies(self, cookie_str: str) -> None:
-        """Login using raw browser cookies from Chrome DevTools.
-
-        Monkey-patches garth's request method to send cookies instead of
-        OAuth Bearer tokens. All garminconnect API methods work transparently.
-        """
-        self._client = Garmin(self.email, self.password)
-        self._client.garth.request = partial(
-            _cookie_request, self._client.garth, cookie_str
-        )
-
     def dump_tokens(self) -> str | None:
-        """Serialize garth session tokens to a base64 string.
+        """Serialize session tokens to a JSON string.
 
         Returns None if the client has not yet successfully logged in.
         """
-        if self._client and self._client.garth:
+        if self._client and self._client.client:
             try:
-                return self._client.garth.dumps()
+                return self._client.client.dumps()
             except Exception:
                 return None
         return None
