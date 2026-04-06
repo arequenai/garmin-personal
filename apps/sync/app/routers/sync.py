@@ -11,6 +11,7 @@ from app.services.sync_orchestrator import (
     set_garmin_cookies,
     set_garmin_tokens,
 )
+import app.services.sync_orchestrator as _orch
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync", tags=["sync"])
@@ -75,8 +76,18 @@ def test_garmin_connection():
         return {
             "status": "error",
             "error": str(exc),
+            "consecutive_failures": _orch._garmin_consecutive_failures,
             "traceback": traceback.format_exc(),
         }
+
+
+@router.post("/reset-cooldown")
+def reset_garmin_cooldown():
+    """Reset the Garmin login cooldown to allow an immediate retry."""
+    _orch._garmin_login_failed_at = 0
+    _orch._garmin_consecutive_failures = 0
+    _orch._garmin_client = None
+    return {"status": "cooldown_reset"}
 
 
 @router.post("/trigger")

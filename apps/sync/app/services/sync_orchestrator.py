@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 _garmin_client: GarminClient | None = None
 _garmin_token_store: str | None = None
 _garmin_login_failed_at: float = 0  # timestamp of last login failure
-_GARMIN_COOLDOWN_SEC = 21600  # 6 hour cooldown after a login failure
+_garmin_consecutive_failures: int = 0  # for exponential backoff
+_GARMIN_BASE_COOLDOWN_SEC = 3600  # 1 hour base cooldown
+_GARMIN_MAX_COOLDOWN_SEC = 86400  # cap at 24 hours
 
 _TOKEN_FILE = Path(__file__).resolve().parent.parent.parent / ".garmin_tokens"
 
@@ -52,9 +54,11 @@ def _save_token_store(tokens: str) -> None:
 def set_garmin_tokens(tokens: str) -> None:
     """Accept externally-provided tokens (e.g. from API upload)."""
     global _garmin_client, _garmin_token_store, _garmin_login_failed_at
+    global _garmin_consecutive_failures
     _garmin_token_store = tokens
     _garmin_client = None
     _garmin_login_failed_at = 0
+    _garmin_consecutive_failures = 0
     _save_token_store(tokens)
 
 
@@ -70,11 +74,25 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
     Tries authentication in order:
     1. Persisted token store (DI tokens from previous successful login)
     2. Email/password login via garminconnect v0.3+ (uses curl-cffi for TLS fingerprinting)
+
+    Uses exponential backoff on failures to avoid hammering Garmin's rate limit.
     """
     global _garmin_client, _garmin_token_store, _garmin_login_failed_at
+    global _garmin_consecutive_failures
 
-    if _garmin_login_failed_at and time.time() - _garmin_login_failed_at < _GARMIN_COOLDOWN_SEC:
-        raise ConnectionError("Garmin login on cooldown after recent failure")
+    # Exponential backoff: 1h, 2h, 4h, 8h, 16h, 24h (capped)
+    if _garmin_login_failed_at:
+        cooldown = min(
+            _GARMIN_BASE_COOLDOWN_SEC * (2 ** (_garmin_consecutive_failures - 1)),
+            _GARMIN_MAX_COOLDOWN_SEC,
+        )
+        remaining = cooldown - (time.time() - _garmin_login_failed_at)
+        if remaining > 0:
+            hours = remaining / 3600
+            raise ConnectionError(
+                f"Garmin login on cooldown ({hours:.1f}h remaining, "
+                f"attempt {_garmin_consecutive_failures})"
+            )
 
     # Load persisted tokens on first call
     if _garmin_token_store is None:
@@ -108,9 +126,16 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
                 _save_token_store(_garmin_token_store)
             _garmin_client = client
             _garmin_login_failed_at = 0
+            _garmin_consecutive_failures = 0
         except Exception:
+            _garmin_consecutive_failures += 1
             _garmin_login_failed_at = time.time()
             _garmin_client = None
+            logger.error(
+                "Garmin login failed (attempt %d, next retry in %s)",
+                _garmin_consecutive_failures,
+                f"{min(_GARMIN_BASE_COOLDOWN_SEC * (2 ** (_garmin_consecutive_failures - 1)), _GARMIN_MAX_COOLDOWN_SEC) / 3600:.1f}h",
+            )
             raise
     return _garmin_client
 
