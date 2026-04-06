@@ -7,6 +7,11 @@ import time
 from datetime import date
 from pathlib import Path
 
+from garminconnect.exceptions import (
+    GarminConnectAuthenticationError,
+    GarminConnectTooManyRequestsError,
+)
+
 from app.config import settings
 from app.database import SessionLocal
 from app.models import User
@@ -71,9 +76,14 @@ def set_garmin_cookies(cookie_str: str) -> None:
 def _get_garmin_client(force_new: bool = False) -> GarminClient:
     """Return a cached GarminClient, creating one only on first call or after auth failure.
 
-    Tries authentication in order:
-    1. Persisted token store (DI tokens from previous successful login)
-    2. Email/password login via garminconnect v0.3+ (uses curl-cffi for TLS fingerprinting)
+    Auth strategy:
+    1. Always pass persisted DI tokens to the library when available.
+       The library will refresh them via diauth.garmin.com (not rate-limited)
+       and only fall back to SSO login if the refresh token is also expired.
+    2. Single login() call — the library handles token→refresh→credentials
+       fallback internally.  We do NOT wrap it in our own fallback to avoid
+       doubling SSO login attempts (each attempt can fire ~16 requests across
+       4 strategies × multiple TLS impersonations).
 
     Uses exponential backoff on failures to avoid hammering Garmin's rate limit.
     """
@@ -103,22 +113,13 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
             client = GarminClient(
                 email=settings.garmin_email, password=settings.garmin_password
             )
-
-            logged_in = False
-
-            # 1. Try persisted token store
-            if _garmin_token_store and not force_new:
-                try:
-                    client.login(tokenstore=_garmin_token_store)
-                    logger.info("Garmin client logged in (cached tokens)")
-                    logged_in = True
-                except Exception:
-                    logger.warning("Token store login failed, will try credentials")
-
-            # 2. Fall back to email/password
-            if not logged_in:
-                client.login()
-                logger.info("Garmin client logged in (credentials)")
+            # Single login call — always pass tokenstore when available.
+            # The library internally: loads DI tokens → refreshes if expiring
+            # → falls back to SSO credentials only if refresh fails.
+            # This avoids the old double-login pattern that fired ~32 SSO
+            # requests when rate-limited.
+            client.login(tokenstore=_garmin_token_store)
+            logger.info("Garmin client authenticated")
 
             # Cache and persist the tokens for next time
             _garmin_token_store = client.dump_tokens()
@@ -127,14 +128,32 @@ def _get_garmin_client(force_new: bool = False) -> GarminClient:
             _garmin_client = client
             _garmin_login_failed_at = 0
             _garmin_consecutive_failures = 0
+        except GarminConnectTooManyRequestsError:
+            _garmin_consecutive_failures += 1
+            _garmin_login_failed_at = time.time()
+            _garmin_client = None
+            next_cooldown = min(
+                _GARMIN_BASE_COOLDOWN_SEC * (2 ** (_garmin_consecutive_failures - 1)),
+                _GARMIN_MAX_COOLDOWN_SEC,
+            )
+            logger.error(
+                "Garmin 429 rate-limited (attempt %d, cooldown %s)",
+                _garmin_consecutive_failures,
+                f"{next_cooldown / 3600:.1f}h",
+            )
+            raise
         except Exception:
             _garmin_consecutive_failures += 1
             _garmin_login_failed_at = time.time()
             _garmin_client = None
+            next_cooldown = min(
+                _GARMIN_BASE_COOLDOWN_SEC * (2 ** (_garmin_consecutive_failures - 1)),
+                _GARMIN_MAX_COOLDOWN_SEC,
+            )
             logger.error(
                 "Garmin login failed (attempt %d, next retry in %s)",
                 _garmin_consecutive_failures,
-                f"{min(_GARMIN_BASE_COOLDOWN_SEC * (2 ** (_garmin_consecutive_failures - 1)), _GARMIN_MAX_COOLDOWN_SEC) / 3600:.1f}h",
+                f"{next_cooldown / 3600:.1f}h",
             )
             raise
     return _garmin_client
@@ -265,8 +284,14 @@ def run_sync_for_date(target_date: date) -> None:
             sync = SyncService(db=db, garmin=garmin, mfp=mfp, nightscout=nightscout)
             try:
                 sync.sync_all(target_date)
-            except Exception:
-                logger.exception("Garmin sync_all failed on first attempt")
+            except GarminConnectTooManyRequestsError:
+                # Never retry on rate limits — it only makes things worse
+                logger.error("Garmin 429 during sync, not retrying")
+            except GarminConnectAuthenticationError:
+                # Auth failed mid-sync (token expired between calls) —
+                # retry once with a fresh client.  The library's _run_request
+                # already retries 401s internally, so this is a last resort.
+                logger.warning("Garmin auth error during sync, retrying with fresh client")
                 garmin = _get_garmin_client(force_new=True)
                 sync.garmin = garmin
                 sync.sync_all(target_date)
