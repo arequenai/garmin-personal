@@ -21,6 +21,7 @@ from app.routers import (
     sleep,
     sync,
     tp,
+    trainingpeaks,
 )
 from app.scheduler import scheduler
 
@@ -58,6 +59,7 @@ app.include_router(plan.router)
 app.include_router(aerobico.router)
 app.include_router(fitbit.router)
 app.include_router(body_composition.router)
+app.include_router(trainingpeaks.router)
 
 
 @app.get("/api/health")
