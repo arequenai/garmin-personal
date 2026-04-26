@@ -86,6 +86,7 @@ def reset_garmin_cooldown():
     """Reset the Garmin login cooldown to allow an immediate retry."""
     _orch._garmin_login_failed_at = 0
     _orch._garmin_consecutive_failures = 0
+    _orch._garmin_last_was_429 = False
     _orch._garmin_client = None
     return {"status": "cooldown_reset"}
 
