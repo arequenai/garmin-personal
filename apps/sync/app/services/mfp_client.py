@@ -71,14 +71,22 @@ class MFPClient:
             totals = day.totals
             goals = day.goals or {}
 
-            # Extract individual food entries from meals
+            # Extract individual food entries from meals with per-entry macros
             entries = []
+            position = 0
             for meal in day.meals:
                 for entry in meal.entries:
+                    nut = entry.nutrition_information or {}
                     entries.append({
-                        "name": entry.name,
                         "meal": meal.name,
+                        "name": entry.name,
+                        "calories": nut.get("calories"),
+                        "protein_g": nut.get("protein"),
+                        "carbs_g": nut.get("carbohydrates"),
+                        "fat_g": nut.get("fat"),
+                        "position": position,
                     })
+                    position += 1
 
             return {
                 "calories": totals.get("calories"),

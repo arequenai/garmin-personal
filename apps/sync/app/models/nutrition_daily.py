@@ -1,4 +1,5 @@
-from sqlalchemy import Date, Float, Integer
+from sqlalchemy import JSON, Date, Float, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -18,3 +19,9 @@ class NutritionDaily(Base):
     calories_goal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     protein_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)
     alcohol_drinks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    entries: Mapped[list] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        nullable=False,
+        default=list,
+        server_default="[]",
+    )

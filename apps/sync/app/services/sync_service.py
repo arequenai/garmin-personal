@@ -1,4 +1,5 @@
 import logging
+import unicodedata
 from datetime import date, datetime
 
 from sqlalchemy.orm import Session
@@ -42,6 +43,27 @@ def _count_alcohol_drinks(entries: list[dict]) -> int:
         if any(kw in name for kw in ALCOHOL_KEYWORDS):
             count += 1
     return count
+
+
+_MEAL_BUCKETS = {
+    "breakfast": "breakfast", "desayuno": "breakfast",
+    "lunch": "lunch", "comida": "lunch", "almuerzo": "lunch",
+    "dinner": "dinner", "cena": "dinner",
+    "snacks": "snacks", "snack": "snacks",
+    "merienda": "snacks", "tentempie": "snacks",
+}
+
+
+def _normalize_meal(name: str) -> str:
+    """Normalize an MFP meal name (any locale) to one of 5 buckets."""
+    norm = (
+        unicodedata.normalize("NFKD", name or "")
+        .encode("ascii", "ignore")
+        .decode()
+        .lower()
+        .strip()
+    )
+    return _MEAL_BUCKETS.get(norm, "other")
 
 
 class SyncService:
@@ -252,6 +274,10 @@ class SyncService:
             return None
         entries = data.get("entries")
         alcohol_drinks = _count_alcohol_drinks(entries) if entries is not None else None
+        normalized_entries = [
+            {**e, "meal": _normalize_meal(e.get("meal", ""))}
+            for e in (entries or [])
+        ]
         values = {
             "date": target_date,
             "calories": data.get("calories"),
@@ -263,6 +289,7 @@ class SyncService:
             "calories_goal": data.get("calories_goal"),
             "protein_goal_g": data.get("protein_goal_g"),
             "alcohol_drinks": alcohol_drinks,
+            "entries": normalized_entries,
         }
         record = self._upsert(NutritionDaily, "date", target_date, values)
         self.db.commit()

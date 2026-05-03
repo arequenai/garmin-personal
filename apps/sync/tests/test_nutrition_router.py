@@ -88,3 +88,39 @@ def test_nutrition_adaptive_target_with_long_run_tomorrow(client, db):
     row = data[0]
     # Should include preload bonus (+200)
     assert row["calories_target_adaptive"] == 1700  # base 1500 + preload 200
+
+
+def test_meals_endpoint_groups_entries_by_bucket(client, db):
+    db.add(NutritionDaily(
+        date=date(2026, 5, 3),
+        calories=1800,
+        protein_g=120,
+        carbs_g=200,
+        fat_g=60,
+        entries=[
+            {"meal": "breakfast", "name": "Oats", "calories": 300,
+             "protein_g": 10, "carbs_g": 50, "fat_g": 5, "position": 0},
+            {"meal": "lunch", "name": "Chicken", "calories": 400,
+             "protein_g": 50, "carbs_g": 0, "fat_g": 10, "position": 1},
+            {"meal": "other", "name": "Coffee", "calories": 5,
+             "protein_g": 0, "carbs_g": 0, "fat_g": 0, "position": 2},
+        ],
+    ))
+    db.commit()
+
+    resp = client.get("/api/nutrition/2026-05-03/meals")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["date"] == "2026-05-03"
+    assert len(body["meals"]["breakfast"]) == 1
+    assert body["meals"]["breakfast"][0]["name"] == "Oats"
+    assert len(body["meals"]["lunch"]) == 1
+    assert len(body["meals"]["other"]) == 1
+    assert body["meals"]["dinner"] == []
+    assert body["meals"]["snacks"] == []
+    assert body["totals"]["calories"] == 1800
+
+
+def test_meals_endpoint_returns_404_when_missing(client):
+    resp = client.get("/api/nutrition/2099-01-01/meals")
+    assert resp.status_code == 404
