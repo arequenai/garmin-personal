@@ -1,5 +1,6 @@
 from app.models.activity import Activity
 from app.models.body_composition import BodyComposition
+from app.models.coach_briefing import CoachBriefing
 from app.models.daily_summary import DailySummary
 from app.models.exercise_set import ExerciseSet
 from app.models.glucose_daily import GlucoseDaily
@@ -34,4 +35,5 @@ __all__ = [
     "TPPlannedWorkout",
     "TPCompletedWorkout",
     "StressReading",
+    "CoachBriefing",
 ]

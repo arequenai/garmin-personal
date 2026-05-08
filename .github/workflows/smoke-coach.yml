@@ -1,0 +1,20 @@
+name: smoke-coach
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger pre-dinner briefing on production (smoke)
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.COACH_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"force": true, "date": "2099-01-01"}' \
+            "${{ secrets.GARMIN_SYNC_URL }}/api/coach/trigger-briefing"

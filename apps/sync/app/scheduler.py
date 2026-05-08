@@ -26,6 +26,21 @@ def frequent_sync_job():
         logger.exception("Frequent sync failed")
 
 
+def coach_pre_dinner_job():
+    logger.info("Starting coach pre-dinner briefing")
+    try:
+        from app.coach import briefing as coach_briefing
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            coach_briefing.run_pre_dinner(db)
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("Coach pre-dinner briefing failed")
+
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(daily_sync_job, "cron", hour=5, minute=0, id="daily_sync")
 scheduler.add_job(
@@ -34,4 +49,12 @@ scheduler.add_job(
     minute="*/15",
     hour="7-23",
     id="frequent_sync",
+)
+scheduler.add_job(
+    coach_pre_dinner_job,
+    "cron",
+    hour=20,
+    minute=30,
+    timezone="Europe/Madrid",
+    id="coach_pre_dinner",
 )

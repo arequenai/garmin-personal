@@ -9,6 +9,7 @@ from app.routers import (
     activities,
     aerobico,
     body_composition,
+    coach,
     daily,
     dashboard,
     fitbit,
@@ -60,6 +61,7 @@ app.include_router(aerobico.router)
 app.include_router(fitbit.router)
 app.include_router(body_composition.router)
 app.include_router(trainingpeaks.router)
+app.include_router(coach.router)
 
 
 @app.get("/api/health")
